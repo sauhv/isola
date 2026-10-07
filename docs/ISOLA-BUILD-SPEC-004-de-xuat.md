@@ -22,7 +22,7 @@ Tham chiếu sản phẩm: AdsPower (quản lý profile, nhóm/tag, proxy, finge
 | Timezone theo IP | "endpoint timezone công khai" | **GeoIP offline (DB-IP Lite .mmdb, CC BY 4.0)** đóng gói kèm app | Không phụ thuộc bên thứ ba, test được offline. Chỉ bước lấy IP ra là cần mạng. |
 | Cookie Local API / test | Đọc file `Cookies` | **CDP `Storage.getCookies` / `Storage.setCookies`** | File Cookies mã hóa (DPAPI/Keychain). |
 | Tiến trình | Tất cả trong main | Main + **`utilityProcess` "engine"** (relay + CDP controller) | Relay chuyển dữ liệu nhiều; tách khỏi main để UI không giật. Vẫn là 1 app, không microservice. |
-| Electron | 32 | **[Cần chốt]** lên bản Electron đang được hỗ trợ | 32 đã hết hạn vá bảo mật. Nâng sau Phase 1, trước khi phát hành. |
+| Electron | 32 | **[Đã chốt]** bản Electron ổn định mới nhất, nâng ở Phase 1 | 32 đã hết hạn vá bảo mật. |
 
 ---
 
@@ -99,8 +99,8 @@ Quy tắc:
 - Catalog là tổ hợp thiết bị **có thật**: OS ↔ platform ↔ UA-CH `platformVersion` ↔ GPU ↔ màn hình ↔ font, đi cùng nhau.
 - `screen.availHeight` = height − thanh tác vụ (Windows 40/48px, macOS 25px menu bar). Không để `availHeight == height`.
 - Noise canvas/audio: PRNG xác định (mulberry32), khóa = `canvasNoise` ⊕ hash nội dung vẽ. Cùng nội dung → cùng hash qua mọi lần tải. Hai profile → khác nhau.
-- **[Cần chốt] Lọc catalog theo OS máy chủ:** máy Windows chỉ cho chọn tổ hợp Windows; máy Mac chỉ tổ hợp macOS. Lý do: JS không che được khác biệt render font/emoji/TextMetrics giữa hai OS. Giả OS chéo dễ bị phát hiện hơn là không giả. Cho phép chéo OS chỉ khi `lab=1`.
-- **[Cần chốt] Lọc catalog theo hãng GPU máy chủ** (Intel/NVIDIA/AMD/Apple): chỉ đọc tên hãng để *lọc* catalog, không trộn giá trị thật vào seed. Lý do: tham số WebGL (max texture, extension list) và hiệu năng lộ GPU thật. SPEC-003 cấm "đọc GPU thật", nên đây là ngoại lệ cần chủ dự án duyệt.
+- **[Đã chốt 2026-10-07] Lọc catalog theo OS máy chủ:** máy Windows chỉ cho chọn tổ hợp Windows; máy Mac chỉ tổ hợp macOS. Lý do: JS không che được khác biệt render font/emoji/TextMetrics giữa hai OS. Giả OS chéo dễ bị phát hiện hơn là không giả. Cho phép chéo OS chỉ khi `lab=1`.
+- **[Đã chốt 2026-10-07] Lọc catalog theo hãng GPU máy chủ** (Intel/NVIDIA/AMD/Apple): chỉ đọc tên hãng để *lọc* catalog, không trộn giá trị thật vào seed. Lý do: tham số WebGL (max texture, extension list) và hiệu năng lộ GPU thật. SPEC-003 cấm "đọc GPU thật", nên đây là ngoại lệ cần chủ dự án duyệt.
 
 ### Trang tự kiểm (thay "check fingerprint" của AdsPower)
 
