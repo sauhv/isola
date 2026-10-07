@@ -21,6 +21,13 @@ type ProfileRow = {
   kernel: string
   proxy_id: string | null
   proxy_host: string | null
+  proxy_label: string | null
+  proxy_type: string | null
+  proxy_ip: string | null
+  proxy_country: string | null
+  proxy_error: string | null
+  platform_label: string | null
+  last_opened_at: string | null
   lab: number
   notes: string | null
   deleted_at: string | null
@@ -30,7 +37,10 @@ type ProfileRow = {
 
 const SELECT_PROFILE = `
   SELECT p.id, p.serial, p.name, p.group_id, g.name AS group_name, p.start_urls, p.username,
-         p.status, p.kernel, p.proxy_id, x.host AS proxy_host, p.lab, p.notes, p.deleted_at, p.created_at, p.updated_at
+         p.status, p.kernel, p.proxy_id, x.host AS proxy_host, x.label AS proxy_label, x.type AS proxy_type,
+         x.last_check_ip AS proxy_ip, x.last_check_country AS proxy_country, x.last_check_error AS proxy_error,
+         p.platform_label, p.lab, p.notes, p.deleted_at, p.created_at, p.updated_at,
+         (SELECT MAX(a.at) FROM audit_log a WHERE a.profile_id = p.id AND a.action = 'open') AS last_opened_at
   FROM profiles p
   LEFT JOIN groups g ON g.id = p.group_id
   LEFT JOIN proxies x ON x.id = p.proxy_id`
@@ -98,8 +108,8 @@ export class ProfileService {
           .run(fingerprintId, JSON.stringify({ version: 0 }), 'pending', ts)
         this.db
           .prepare(
-            `INSERT INTO profiles (id, serial, name, group_id, proxy_id, start_urls, username, kernel, fingerprint_id, lab, notes, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO profiles (id, serial, name, group_id, proxy_id, start_urls, username, kernel, fingerprint_id, lab, notes, platform_label, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             id,
@@ -113,6 +123,7 @@ export class ProfileService {
             fingerprintId,
             input.lab ? 1 : 0,
             input.notes ?? null,
+            input.platform?.trim() || null,
             ts,
             ts
           )
@@ -146,6 +157,7 @@ export class ProfileService {
     if (patch.startUrls !== undefined) set('start_urls', JSON.stringify(patch.startUrls))
     if (patch.username !== undefined) set('username', patch.username)
     if (patch.notes !== undefined) set('notes', patch.notes)
+    if (patch.platform !== undefined) set('platform_label', patch.platform?.trim() || null)
     if (patch.lab !== undefined) set('lab', patch.lab ? 1 : 0)
     set('updated_at', now())
 
@@ -324,6 +336,18 @@ export class ProfileService {
       kernel: r.kernel,
       proxyId: r.proxy_id,
       proxyHost: r.proxy_host,
+      proxy: r.proxy_id
+        ? {
+            label: r.proxy_label ?? '',
+            type: r.proxy_type ?? '',
+            host: r.proxy_host ?? '',
+            ip: r.proxy_ip,
+            country: r.proxy_country,
+            error: r.proxy_error
+          }
+        : null,
+      platform: r.platform_label,
+      lastOpenedAt: r.last_opened_at,
       lab: r.lab === 1,
       notes: r.notes,
       deletedAt: r.deleted_at,

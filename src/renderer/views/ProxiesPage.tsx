@@ -85,7 +85,10 @@ export default function ProxiesPage() {
 
   return (
     <>
-      <h1 className="page-title">Proxy</h1>
+      <div className="page-head">
+        <h1 className="page-title">Proxy</h1>
+      </div>
+      <div className="panel pad">
 
       {geo && !geo.installed && (
         <div className="note" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -257,6 +260,7 @@ export default function ProxiesPage() {
           }}
         />
       )}
+      </div>
     </>
   )
 }

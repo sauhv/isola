@@ -68,9 +68,13 @@ function registerRendererProtocol(): void {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 760,
+    width: 1440,
+    height: 800,
+    minWidth: 1100,
+    minHeight: 640,
     title: 'Isola',
+    // Trùng màu nền giao diện để không chớp trắng lúc mở.
+    backgroundColor: '#141518',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

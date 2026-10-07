@@ -29,6 +29,18 @@ export interface Profile {
   kernel: string
   proxyId: string | null
   proxyHost: string | null
+  /** Tóm tắt proxy để hiện trong bảng (kết quả kiểm gần nhất). */
+  proxy: {
+    label: string
+    type: string
+    host: string
+    ip: string | null
+    country: string | null
+    error: string | null
+  } | null
+  /** Nền tảng tài khoản trong profile (facebook, tiktok…), người dùng tự ghi. */
+  platform: string | null
+  lastOpenedAt: string | null
   lab: boolean
   notes: string | null
   deletedAt: string | null
@@ -51,6 +63,7 @@ export interface ProfileInput {
   startUrls?: string[]
   username?: string | null
   notes?: string | null
+  platform?: string | null
   lab?: boolean
   kernel?: string
 }

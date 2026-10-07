@@ -40,7 +40,10 @@ export default function KernelsPage() {
 
   return (
     <>
-      <h1 className="page-title">Kernel</h1>
+      <div className="page-head">
+        <h1 className="page-title">Kernel</h1>
+      </div>
+      <div className="panel pad">
       <p className="note">
         Kernel là Chrome for Testing ghim phiên bản, tải từ máy chủ chính thức của Google. Không tự cập nhật, không
         có Widevine (trang dùng DRM như Netflix sẽ không phát), không đăng nhập Google Sync.
@@ -90,6 +93,7 @@ export default function KernelsPage() {
             })}
           </tbody>
         </table>
+      </div>
       </div>
     </>
   )

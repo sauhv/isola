@@ -87,7 +87,10 @@ export default function ExtensionsPage() {
 
   return (
     <>
-      <h1 className="page-title">Extension</h1>
+      <div className="page-head">
+        <h1 className="page-title">Extension</h1>
+      </div>
+      <div className="panel pad">
 
       <form className="toolbar" onSubmit={addFromStore}>
         <input
@@ -245,6 +248,7 @@ export default function ExtensionsPage() {
           }}
         />
       )}
+      </div>
     </>
   )
 }

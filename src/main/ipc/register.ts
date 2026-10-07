@@ -26,6 +26,7 @@ const profileFields = {
   startUrls: z.array(httpUrl).max(20).optional(),
   username: z.string().max(200).nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
+  platform: z.string().trim().max(50).nullable().optional(),
   lab: z.boolean().optional()
 }
 const profileInput = z.object({ ...profileFields, kernel: z.string().optional() }).strict()
