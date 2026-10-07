@@ -128,34 +128,63 @@ Quy tắc:
 - Log: redact theo tên trường (`password`, `pass`, `cookie`, `token`, `authorization`, `proxy-authorization`) và theo mẫu URL `scheme://user:pass@`.
 - Phát hành: ký mã Windows (Authenticode) và notarize macOS, nếu không SmartScreen/Gatekeeper sẽ chặn.
 
-## 8. Tính năng từ AdsPower nên đưa vào
+## 8. Ưu tiên v1 (chốt 2026-10-07): Profile, Proxy, Extension
 
-v1 (trong các phase hiện có):
-- Nhóm, tag, ghi chú, serial. Lọc theo nhóm/tag/trạng thái/proxy. Chọn nhiều → mở/đóng/đổi nhóm/đổi proxy hàng loạt.
-- Import proxy hàng loạt, test hàng loạt (song song tối đa 10).
+Chủ dự án chốt: v1 tập trung làm thật mạnh ba mảng **Profile**, **Proxy**, **Extension**. Các mục sau **hoãn**, không làm ở v1:
 
-v1.1 (Phase 7+, **không** làm chung lượt với Phase 1):
-- Tạo profile hàng loạt: N profile, ghép proxy 1:1 từ danh sách, nhập từ CSV/XLSX.
-- Xuất/nhập profile `.isola` (zip user-data trừ cache + seed + cấu hình, mã hóa bằng passphrase). Dùng để chuyển máy hoặc sao lưu.
-- Nhập cookie JSON (định dạng EditThisCookie) lúc tạo profile.
-- Sắp xếp cửa sổ (lưới) cho các profile đang chạy.
-- Thùng rác: archive → khôi phục trong 7 ngày → purge.
+- AI Agent, Synchronizer, RPA, RPA Plus.
+- API & MCP (Local API của SPEC-003 §9 chuyển sang sau v1). Thiết kế bảo mật ở §7 giữ lại cho lúc làm.
+- Billing, Team/phân quyền, cloud sync, Firefox, mobile.
 
-v2 (đã cắt ở v1, giữ nguyên): RPA, synchronizer, team/phân quyền, cloud sync, extension center, Firefox, mobile.
+### 8.1 Profile
 
-Không sao chép: quảng cáo "không thể bị phát hiện". Nhãn `compat` giữ nguyên ý nghĩa: fingerprint áp qua CDP trên kernel CfT, chưa phải kernel vá.
+- Đã có (Phase 1): CRUD, nhóm, tag, ghi chú, serial, lưu trữ/khôi phục/xóa vĩnh viễn, mở/đóng, trạng thái realtime.
+- Thêm:
+  - Chọn nhiều → mở, đóng, đổi nhóm, đổi proxy, gán/bỏ extension, lưu trữ hàng loạt.
+  - Tạo hàng loạt: N profile, đặt tên theo mẫu (`Shop {n}`), ghép proxy 1:1 hoặc xoay vòng từ danh sách.
+  - Nhập từ CSV/XLSX (tên, nhóm, tag, proxy, URL, ghi chú, cookie).
+  - Nhân bản profile (seed mới, không chép cookie).
+  - Nhập cookie JSON (định dạng EditThisCookie / Netscape) qua CDP `Storage.setCookies`; xuất cookie (audit `cookie_export`).
+  - Xuất/nhập `.isola` (user-data trừ cache + cấu hình, mã hóa passphrase) để chuyển máy.
+  - Sắp xếp cửa sổ dạng lưới cho các profile đang chạy.
+  - Giới hạn số profile chạy đồng thời, xóa cache khi đóng, hiện dung lượng.
+  - Fingerprint theo catalog, nhất quán (§5).
+
+### 8.2 Proxy
+
+- Loại: `http`, `https`, `socks5`, có/không auth. Relay cục bộ + kill-switch (§4).
+- Kiểm tra: IP ra, quốc gia, thành phố, timezone (GeoIP offline), độ trễ. Kiểm hàng loạt song song tối đa 10.
+- Import hàng loạt nhiều định dạng (`host:port`, `host:port:user:pass`, `user:pass@host:port`, `scheme://user:pass@host:port`), tối đa 500 dòng, dòng lỗi trả về danh sách lỗi.
+- **Proxy xoay (rotating/mobile):** trường `refresh_url` tùy chọn. Nút "Đổi IP" gọi URL này rồi kiểm tra lại. Cảnh báo nếu IP đổi quốc gia.
+- Gán: một proxy cho nhiều profile được phép nhưng UI cảnh báo "dùng chung IP".
+- Bảng proxy: nhãn, loại, host:port, IP ra, quốc gia, độ trễ, lần kiểm cuối, số profile đang dùng.
+- Password proxy mã hóa bằng safeStorage **ngay từ Phase 2** (không chờ Phase "Secret").
+
+### 8.3 Extension
+
+Mục tiêu tương đương "Extension center" của AdsPower, chạy local.
+
+- **Thêm extension:**
+  - Từ Chrome Web Store: dán URL hoặc ID → tải CRX từ endpoint cập nhật chính thức của Google, giải nén.
+  - Từ file `.crx`, `.zip`, hoặc thư mục đã giải nén.
+- **Lưu trữ:** `{dataRoot}/extensions/{extId}/{version}/`. Bản gốc chỉ đọc, dùng chung cho mọi profile.
+- **Giữ nguyên ID:** khi giải nén CRX, chép public key từ header CRX vào `manifest.json` → `key`, để extension có đúng ID như trên Web Store. Nhờ vậy dữ liệu extension (ví, đăng nhập) trong user-data của profile không mất khi cập nhật phiên bản.
+- **Phạm vi áp dụng:** mỗi extension gán cho *tất cả profile*, *một số nhóm*, hoặc *một số profile*. Bật/tắt toàn cục.
+- **Nạp:** lúc launch tính danh sách extension hiệu lực của profile → `--load-extension=dir1,dir2,...` (CfT còn hỗ trợ cờ này; Chrome chính thức thì không). Extension không được gán thì không nạp, dữ liệu của nó vẫn nằm trong user-data.
+- **Cập nhật:** nút "Kiểm tra cập nhật" so phiên bản Web Store; cập nhật = tải bản mới vào thư mục version mới, đổi con trỏ. Profile đang chạy dùng bản mới từ lần mở sau.
+- **Kiểm tra lúc thêm:** chỉ nhận Manifest V3 (Chrome ≥138 bỏ MV2). Hiện tên, icon, phiên bản, quyền (`permissions`, `host_permissions`) để người dùng thấy trước khi gán.
+- **Lưu ý cho người dùng:** extension có thể bị trang web phát hiện (qua `web_accessible_resources`) và làm khác dấu vết giữa các profile. UI ghi rõ điều này.
 
 ## 9. Kế hoạch phase cập nhật
 
 | Phase | Nội dung | Test tự động |
 |---|---|---|
 | 0 ✅ | Electron + Next shell, dataRoot, migration WAL | DB, kill giữa chừng |
-| 1 | CRUD profile/group/tag, kernel manager (tải CfT), spawn qua CDP pipe, UI Profiles cơ bản | `isolation.test.ts`: 2 profile, set cookie A qua CDP, B không có |
-| 2 | Proxy CRUD/import, relay, GeoIP, kill-switch, chặn start | relay với proxy giả local (có auth, http + socks5); upstream chết → 502, không đi thẳng |
-| 3 | Seed + catalog, CDP override, trang tự kiểm | `seedStability.test.ts`; test so UA/UA-CH/timezone báo bởi trang với `effective` |
-| 4 | Catalog validator, rotateSeed, nâng kernel | tổ hợp ngoài catalog bị từ chối; audit `seed_rotate` |
-| 5 | safeStorage cho mọi password | dump DB + log, grep không thấy plaintext |
-| 6 | Local API | 401, chống rebinding, rate limit cookie 2 req/s |
-| 7 | Các mục v1.1 ở §8 | theo từng mục |
+| 1 ✅ | CRUD profile/nhóm/tag, kernel CfT, launch qua CDP pipe, UI Profile + Kernel | cookie A không có ở B; CRUD |
+| 2 | Proxy: CRUD, import, relay, kill-switch, GeoIP, safeStorage cho password, chặn mở khi proxy lỗi, gán proxy cho profile, refresh_url | proxy giả local (http + socks5, có auth); upstream chết → không đi thẳng; DB không có plaintext |
+| 3 | Extension center: thêm từ Web Store/file, giữ ID, phạm vi gán, nạp lúc launch, cập nhật | CRX → đúng ID; profile A có extension, B không; dữ liệu extension giữ sau cập nhật |
+| 4 | Fingerprint: seed + catalog + CDP override + trang tự kiểm, rotateSeed, nâng kernel | `seedStability`; UA/UA-CH/timezone khớp `effective` |
+| 5 | Profile nâng cao: thao tác hàng loạt, tạo hàng loạt, CSV/XLSX, nhân bản, cookie import/export, `.isola`, sắp cửa sổ | theo từng mục |
+| sau v1 | Local API & MCP, RPA, Synchronizer, AI Agent, Team, Billing | — |
 
-Phụ thuộc thêm: `@puppeteer/browsers`, `proxy-chain`, `maxmind` (đọc .mmdb), `zod`, `@tanstack/react-table`, `@tanstack/react-virtual`, `@tanstack/react-query`, Tailwind CSS + shadcn/ui.
+Phụ thuộc thêm: `proxy-chain`, `maxmind` + DB-IP Lite (.mmdb), `adm-zip` hoặc `yauzl` (giải nén CRX/zip), `@tanstack/react-table`, `@tanstack/react-virtual`.
