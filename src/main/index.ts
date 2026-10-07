@@ -3,6 +3,11 @@ import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { join, normalize, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { openDatabase, type Db } from './db'
+import { registerIpc } from './ipc/register'
+import { paths } from './paths'
+import { KernelService } from './services/kernelService'
+import { LaunchService } from './services/launchService'
+import { ProfileService } from './services/profileService'
 
 const APP_SCHEME = 'app'
 const APP_ORIGIN = `${APP_SCHEME}://isola`
@@ -21,7 +26,9 @@ const CSP = [
 ].join('; ')
 
 let db: Db | null = null
+let launcher: LaunchService | null = null
 let mainWindow: BrowserWindow | null = null
+let quitting = false
 
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }
@@ -29,7 +36,7 @@ protocol.registerSchemesAsPrivileged([
 
 function prepareDataRoot(): string {
   const dataRoot = app.getPath('userData')
-  for (const dir of ['profiles', 'logs']) {
+  for (const dir of ['profiles', 'logs', 'kernels']) {
     mkdirSync(join(dataRoot, dir), { recursive: true })
   }
   return dataRoot
@@ -95,7 +102,12 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     try {
       const dataRoot = prepareDataRoot()
-      db = openDatabase(join(dataRoot, 'isola.db'))
+      db = openDatabase(paths.db(dataRoot))
+      const profiles = new ProfileService(db, dataRoot)
+      profiles.resetStaleRunning()
+      const kernels = new KernelService(paths.kernels(dataRoot))
+      launcher = new LaunchService(db, dataRoot, profiles, kernels)
+      registerIpc({ profiles, launcher, kernels, target: () => mainWindow?.webContents ?? null })
     } catch (err) {
       dialog.showErrorBox('Isola không khởi động được', String(err))
       app.exit(1)
@@ -107,6 +119,14 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('window-all-closed', () => {
     app.quit()
+  })
+
+  // Đóng êm mọi profile trước khi thoát để Chrome kịp ghi cookie xuống đĩa.
+  app.on('before-quit', (event) => {
+    if (quitting || !launcher) return
+    event.preventDefault()
+    quitting = true
+    launcher.stopAll().finally(() => app.quit())
   })
 
   app.on('will-quit', () => {

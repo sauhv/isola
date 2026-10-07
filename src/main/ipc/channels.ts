@@ -1,4 +1,23 @@
-// Tên kênh IPC dùng chung giữa main và preload. Phase 1 trở đi thêm kênh profiles/proxies/groups.
-export const Channels = {} as const
+// Tên kênh IPC dùng chung giữa main và preload.
+export const Channels = {
+  profilesList: 'profiles:list',
+  profilesCreate: 'profiles:create',
+  profilesUpdate: 'profiles:update',
+  profilesArchive: 'profiles:archive',
+  profilesRestore: 'profiles:restore',
+  profilesPurge: 'profiles:purge',
+  profilesStart: 'profiles:start',
+  profilesStop: 'profiles:stop',
+  groupsList: 'groups:list',
+  groupsCreate: 'groups:create',
+  groupsRename: 'groups:rename',
+  groupsRemove: 'groups:remove',
+  tagsList: 'tags:list',
+  kernelsList: 'kernels:list',
+  kernelsInstall: 'kernels:install',
+  // main → renderer
+  evtProfileStatus: 'evt:profile-status',
+  evtKernelProgress: 'evt:kernel-progress'
+} as const
 
-export type Result<T> = { ok: true; data: T } | { ok: false; error: string }
+export type { Result } from '../../shared/types'

@@ -5,6 +5,7 @@ src/renderer/.next/
 src/renderer/out/
 src/renderer/next-env.d.ts
 *.tsbuildinfo
+tests/.cache/
 *.db
 *.db-wal
 *.db-shm
