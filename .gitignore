@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+src/renderer/.next/
+src/renderer/out/
+src/renderer/next-env.d.ts
+*.tsbuildinfo
+*.db
+*.db-wal
+*.db-shm
