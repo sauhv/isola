@@ -13,28 +13,34 @@ import {
   MoreVertical,
   Pencil,
   Play,
+  Plus,
   RefreshCw,
   Search,
   Square,
   Trash2
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Group, Profile, Proxy, Tag } from '../../../shared/types'
+import type { Group, Profile, Tag } from '../../../shared/types'
 import Menu from '../../components/Menu'
 import { runBatch } from '../../lib/batch'
 import { colorFor, countryName, dateTimeParts } from '../../lib/format'
 import { call, isola } from '../../lib/isola'
-import ProfileEditor from '../ProfileEditor'
 import MoveGroupDialog from './MoveGroupDialog'
 
 type SortKey = 'serial' | 'lastOpened'
 const PAGE_SIZES = [20, 50, 100]
 
-export default function ProfilesTab({ newProfileTick }: { newProfileTick: number }) {
+interface Props {
+  /** Tăng khi trang tạo/sửa lưu xong, để bảng tải lại. */
+  reloadTick: number
+  onCreate: () => void
+  onEdit: (profile: Profile) => void
+}
+
+export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [tags, setTags] = useState<Tag[]>([])
-  const [proxies, setProxies] = useState<Proxy[]>([])
   const [groupId, setGroupId] = useState('')
   const [tagId, setTagId] = useState('')
   const [search, setSearch] = useState('')
@@ -46,21 +52,18 @@ export default function ProfilesTab({ newProfileTick }: { newProfileTick: number
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<Profile | 'new' | null>(null)
   const [moving, setMoving] = useState<Profile[] | null>(null)
 
   const reload = useCallback(async () => {
     try {
-      const [p, g, t, x] = await Promise.all([
+      const [p, g, t] = await Promise.all([
         call(isola().profiles.list({ groupId: groupId || undefined, tagId: tagId || undefined })),
         call(isola().groups.list()),
-        call(isola().tags.list()),
-        call(isola().proxies.list())
+        call(isola().tags.list())
       ])
       setProfiles(p)
       setGroups(g)
       setTags(t)
-      setProxies(x)
       setSelected((s) => new Set([...s].filter((id) => p.some((x) => x.id === id))))
     } catch (e) {
       setError((e as Error).message)
@@ -69,11 +72,7 @@ export default function ProfilesTab({ newProfileTick }: { newProfileTick: number
 
   useEffect(() => {
     reload()
-  }, [reload])
-
-  useEffect(() => {
-    if (newProfileTick) setEditing('new')
-  }, [newProfileTick])
+  }, [reload, reloadTick])
 
   // Trạng thái chạy/dừng do main đẩy xuống, kể cả khi người dùng tự đóng cửa sổ Chrome.
   useEffect(
@@ -245,6 +244,9 @@ export default function ProfilesTab({ newProfileTick }: { newProfileTick: number
         )}
         {bulkBusy && <Loader2 size={16} className="spin muted" />}
         <div className="spacer" />
+        <button className="primary" onClick={onCreate}>
+          <Plus size={15} /> Tạo profile
+        </button>
         <button className="icon" title="Tải lại" onClick={reload}>
           <RefreshCw size={15} />
         </button>
@@ -396,7 +398,7 @@ export default function ProfilesTab({ newProfileTick }: { newProfileTick: number
                           </button>
                         )}
                         items={[
-                          { label: 'Sửa', icon: <Pencil size={14} />, onClick: () => setEditing(p) },
+                          { label: 'Sửa', icon: <Pencil size={14} />, onClick: () => onEdit(p) },
                           { label: 'Chuyển nhóm', icon: <FolderInput size={14} />, onClick: () => setMoving([p]) },
                           {
                             label: 'Sao chép ID',
@@ -452,18 +454,6 @@ export default function ProfilesTab({ newProfileTick }: { newProfileTick: number
         </select>
       </div>
 
-      {editing && (
-        <ProfileEditor
-          profile={editing === 'new' ? null : editing}
-          groups={groups}
-          proxies={proxies}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null)
-            reload()
-          }}
-        />
-      )}
       {moving && (
         <MoveGroupDialog
           profiles={moving}

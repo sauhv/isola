@@ -2,13 +2,16 @@
 
 import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type { Profile } from '../../shared/types'
 import type { Page } from '../App'
 import { call, isola } from '../lib/isola'
 import GroupsTab from './profiles/GroupsTab'
+import ProfileFormPage from './profiles/ProfileFormPage'
 import ProfilesTab from './profiles/ProfilesTab'
 import TrashTab from './profiles/TrashTab'
 
 type Tab = 'profiles' | 'groups' | 'trash'
+type FormState = { profile: Profile | null } | null
 
 interface Props {
   newProfileTick: number
@@ -17,12 +20,18 @@ interface Props {
 
 export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
   const [tab, setTab] = useState<Tab>('profiles')
+  const [form, setForm] = useState<FormState>(null)
+  // Tăng sau mỗi lần lưu để bảng tải lại.
+  const [reloadTick, setReloadTick] = useState(0)
   const [kernelMissing, setKernelMissing] = useState(false)
   const [geoMissing, setGeoMissing] = useState(false)
 
-  // Bấm "Tạo profile" ở sidebar thì luôn quay về tab Profiles.
+  // Bấm "Tạo profile" ở sidebar: mở trang tạo profile.
   useEffect(() => {
-    if (newProfileTick) setTab('profiles')
+    if (newProfileTick) {
+      setTab('profiles')
+      setForm({ profile: null })
+    }
   }, [newProfileTick])
 
   useEffect(() => {
@@ -33,6 +42,20 @@ export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
       .then((g) => setGeoMissing(!g.installed))
       .catch(() => {})
   }, [])
+
+  if (form) {
+    return (
+      <ProfileFormPage
+        key={form.profile?.id ?? 'new'}
+        profile={form.profile}
+        onClose={() => setForm(null)}
+        onSaved={() => {
+          setForm(null)
+          setReloadTick((t) => t + 1)
+        }}
+      />
+    )
+  }
 
   return (
     <>
@@ -73,7 +96,13 @@ export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
             Thùng rác
           </button>
         </div>
-        {tab === 'profiles' && <ProfilesTab newProfileTick={newProfileTick} />}
+        {tab === 'profiles' && (
+          <ProfilesTab
+            reloadTick={reloadTick}
+            onCreate={() => setForm({ profile: null })}
+            onEdit={(profile) => setForm({ profile })}
+          />
+        )}
         {tab === 'groups' && <GroupsTab />}
         {tab === 'trash' && <TrashTab />}
       </div>

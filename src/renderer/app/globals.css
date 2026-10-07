@@ -892,3 +892,139 @@ td.actions {
   flex-direction: column;
   white-space: nowrap;
 }
+
+/* ---------- trang tạo/sửa profile ---------- */
+
+.form-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.form-page-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.form-page-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+  align-items: start;
+}
+
+.card {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-field {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.row-field > .row-label {
+  color: #c4c7ce;
+  font-size: 13px;
+}
+
+.row-field > .row-label .hint {
+  display: block;
+}
+
+.row-field.top {
+  align-items: start;
+}
+
+.row-field.top > .row-label {
+  padding-top: 8px;
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 2px;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.seg button {
+  border: none;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+.seg button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.seg button:hover:not(:disabled):not(.active) {
+  background: #25272c;
+  color: var(--text);
+}
+
+.overview {
+  position: sticky;
+  top: 0;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px 10px;
+  font-size: 12.5px;
+}
+
+.kv dt {
+  color: var(--muted);
+}
+
+.kv dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.form-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.check-result {
+  margin-top: 8px;
+  font-size: 12.5px;
+}
+
+.inline-fields {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

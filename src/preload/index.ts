@@ -20,7 +20,12 @@ const api: IsolaApi = {
     restore: (id) => invoke(Channels.profilesRestore, id),
     purge: (id, confirmed) => invoke(Channels.profilesPurge, id, confirmed),
     start: (id) => invoke(Channels.profilesStart, id),
-    stop: (id) => invoke(Channels.profilesStop, id)
+    stop: (id) => invoke(Channels.profilesStop, id),
+    setFingerprint: (id, fp) => invoke(Channels.profilesSetFingerprint, id, fp)
+  },
+  fingerprints: {
+    catalog: () => invoke(Channels.fingerprintsCatalog),
+    preview: (opts) => invoke(Channels.fingerprintsPreview, opts)
   },
   groups: {
     list: () => invoke(Channels.groupsList),
@@ -41,6 +46,7 @@ const api: IsolaApi = {
     update: (id, patch) => invoke(Channels.proxiesUpdate, id, patch),
     remove: (id) => invoke(Channels.proxiesRemove, id),
     test: (id) => invoke(Channels.proxiesTest, id),
+    testDraft: (input) => invoke(Channels.proxiesTestDraft, input),
     testMany: (ids) => invoke(Channels.proxiesTestMany, ids),
     import: (text, defaultType) => invoke(Channels.proxiesImport, text, defaultType),
     refreshIp: (id) => invoke(Channels.proxiesRefreshIp, id)

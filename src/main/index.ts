@@ -5,7 +5,9 @@ import { pathToFileURL } from 'node:url'
 import { openDatabase, type Db } from './db'
 import { registerIpc } from './ipc/register'
 import { paths } from './paths'
+import { detectHostOs, gpuVendorFromPciId, type GpuVendor } from './engine/catalog'
 import { DEFAULT_KERNEL_ID, findSupportedKernel } from './engine/kernels'
+import { CookieService } from './services/cookieService'
 import { ExtensionService } from './services/extensionService'
 import { GeoService } from './services/geoService'
 import { KernelService } from './services/kernelService'
@@ -38,6 +40,21 @@ let quitting = false
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }
 ])
+
+/**
+ * Hãng GPU đang dùng, chỉ để lọc catalog (không trộn giá trị thật vào seed).
+ * Không xác định được thì trả null và catalog không lọc theo GPU.
+ */
+async function detectGpuVendor(): Promise<GpuVendor | null> {
+  try {
+    const info = (await app.getGPUInfo('basic')) as { gpuDevice?: { active?: boolean; vendorId?: number }[] }
+    const devices = info.gpuDevice ?? []
+    const active = devices.find((d) => d.active) ?? devices[0]
+    return gpuVendorFromPciId(active?.vendorId)
+  } catch {
+    return null
+  }
+}
 
 function prepareDataRoot(): string {
   const dataRoot = app.getPath('userData')
@@ -108,21 +125,24 @@ if (!app.requestSingleInstanceLock()) {
     }
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     try {
       const dataRoot = prepareDataRoot()
       db = openDatabase(paths.db(dataRoot))
-      const profiles = new ProfileService(db, dataRoot)
+      const host = { os: detectHostOs(), gpuVendor: await detectGpuVendor() }
+      const profiles = new ProfileService(db, dataRoot, { host })
       profiles.resetStaleRunning()
+      const secrets = createSafeStorageBox()
       const kernels = new KernelService(paths.kernels(dataRoot))
       const geo = new GeoService(paths.geoip(dataRoot))
-      const proxies = new ProxyService(db, createSafeStorageBox(), geo)
+      const proxies = new ProxyService(db, secrets, geo)
+      const cookies = new CookieService(db, secrets)
       const extensions = new ExtensionService(db, paths.extensions(dataRoot), {
         prodVersion: findSupportedKernel(DEFAULT_KERNEL_ID)!.buildId
       })
       extensions.cleanup()
-      launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions })
-      registerIpc({ profiles, proxies, geo, extensions, launcher, kernels, window: () => mainWindow })
+      launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions, cookies })
+      registerIpc({ profiles, proxies, geo, extensions, cookies, launcher, kernels, window: () => mainWindow })
     } catch (err) {
       dialog.showErrorBox('Isola không khởi động được', String(err))
       app.exit(1)

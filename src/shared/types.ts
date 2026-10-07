@@ -4,6 +4,48 @@ export type Result<T> = { ok: true; data: T } | { ok: false; error: string }
 
 export type ProfileStatus = 'idle' | 'running' | 'archived'
 
+/** Seed fingerprint (SPEC-003 §4). Sinh một lần khi tạo profile; không random lại khi mở. */
+export type Seed = {
+  version: 1
+  os: 'windows' | 'macos'
+  chromeMajor: number
+  userAgent: string
+  platform: string
+  vendor: string
+  /** Dùng cho profile lab. Profile production lấy theo quốc gia của IP proxy lúc mở. */
+  language: string
+  languages: string[]
+  /** Dùng cho profile lab. Profile production lấy theo timezone của IP proxy lúc mở. */
+  timezone: string
+  screen: { width: number; height: number; dpr: number; colorDepth: 24 }
+  hardware: { cores: number; memoryGb: number }
+  webgl: { vendor: string; renderer: string }
+  canvasNoise: number
+  audioNoise: number
+  fonts: string[]
+  webrtc: 'replace' | 'disable'
+  mediaDevices: { cameras: number; mics: number }
+}
+
+export interface ProfileFingerprint {
+  catalogId: string
+  seed: Seed
+}
+
+export interface CatalogOption {
+  id: string
+  label: string
+  os: 'windows' | 'macos'
+  gpuVendor: string
+}
+
+export interface FingerprintPreviewOptions {
+  catalogId?: string
+  webrtc?: Seed['webrtc']
+  language?: string
+  timezone?: string
+}
+
 export interface Group {
   id: string
   name: string
@@ -41,6 +83,8 @@ export interface Profile {
   /** Nền tảng tài khoản trong profile (facebook, tiktok…), người dùng tự ghi. */
   platform: string | null
   lastOpenedAt: string | null
+  /** null với profile tạo trước Phase 4 (seed được sinh bù ở lần mở đầu tiên). */
+  fingerprint: ProfileFingerprint | null
   lab: boolean
   notes: string | null
   deletedAt: string | null
@@ -66,9 +110,13 @@ export interface ProfileInput {
   platform?: string | null
   lab?: boolean
   kernel?: string
+  /** Seed đã xem trước trên UI. Không có thì Isola tự sinh. */
+  fingerprint?: ProfileFingerprint
+  /** Cookie dán vào (JSON hoặc Netscape), áp ở lần mở kế tiếp. */
+  cookies?: string
 }
 
-export type ProfilePatch = Partial<Omit<ProfileInput, 'kernel'>>
+export type ProfilePatch = Partial<Omit<ProfileInput, 'kernel' | 'fingerprint'>>
 
 export interface KernelInfo {
   id: string
@@ -190,6 +238,12 @@ export interface IsolaApi {
     purge(id: string, confirmed: boolean): Promise<Result<null>>
     start(id: string): Promise<Result<null>>
     stop(id: string): Promise<Result<null>>
+    /** Đổi fingerprint có chủ đích (audit seed_rotate). */
+    setFingerprint(id: string, fp: ProfileFingerprint): Promise<Result<Profile>>
+  }
+  fingerprints: {
+    catalog(): Promise<Result<CatalogOption[]>>
+    preview(opts?: FingerprintPreviewOptions): Promise<Result<ProfileFingerprint>>
   }
   groups: {
     list(): Promise<Result<Group[]>>
@@ -206,6 +260,8 @@ export interface IsolaApi {
     update(id: string, patch: ProxyPatch): Promise<Result<Proxy>>
     remove(id: string): Promise<Result<null>>
     test(id: string): Promise<Result<Proxy>>
+    /** Kiểm proxy chưa lưu (form tạo profile). */
+    testDraft(input: ProxyInput): Promise<Result<ProxyCheck>>
     testMany(ids: string[]): Promise<Result<Proxy[]>>
     import(text: string, defaultType: ProxyType): Promise<Result<ProxyImportResult>>
     refreshIp(id: string): Promise<Result<Proxy>>

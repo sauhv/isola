@@ -2,6 +2,11 @@ import { dialog, ipcMain, type BrowserWindow, type OpenDialogOptions } from 'ele
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
 import { IsolaError } from '../errors'
+import { CookieParseError, parseCookies, type CookieParam } from '../engine/cookies'
+import { DEFAULT_KERNEL_ID, findSupportedKernel } from '../engine/kernels'
+import { compatibleEntries } from '../engine/catalog'
+import { generateSeed, SeedError } from '../engine/seed'
+import type { CookieService } from '../services/cookieService'
 import type { KernelService } from '../services/kernelService'
 import type { ExtensionService } from '../services/extensionService'
 import type { GeoService } from '../services/geoService'
@@ -27,10 +32,25 @@ const profileFields = {
   username: z.string().max(200).nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
   platform: z.string().trim().max(50).nullable().optional(),
-  lab: z.boolean().optional()
+  lab: z.boolean().optional(),
+  // Cookie dán vào: JSON hoặc Netscape, tối đa ~2 MB.
+  cookies: z.string().max(2_000_000).optional()
 }
-const profileInput = z.object({ ...profileFields, kernel: z.string().optional() }).strict()
+// Seed được kiểm kỹ ở ProfileService (catalog, kernel, máy chủ); ở đây chỉ kiểm hình dạng thô.
+const fingerprintInput = z.object({ catalogId: z.string().min(1).max(100), seed: z.record(z.string(), z.unknown()) }).strict()
+const profileInput = z
+  .object({ ...profileFields, kernel: z.string().optional(), fingerprint: fingerprintInput.optional() })
+  .strict()
 const profilePatch = z.object(profileFields).partial().strict()
+const previewOptions = z
+  .object({
+    catalogId: z.string().max(100).optional(),
+    webrtc: z.enum(['replace', 'disable']).optional(),
+    language: z.string().max(20).optional(),
+    timezone: z.string().max(64).optional()
+  })
+  .strict()
+  .optional()
 const profileFilter = z
   .object({
     groupId: id.optional(),
@@ -75,6 +95,7 @@ export interface Services {
   proxies: ProxyService
   geo: GeoService
   extensions: ExtensionService
+  cookies: CookieService
   launcher: LaunchService
   kernels: KernelService
   /** Cửa sổ chính: nhận event main → renderer, làm cha cho hộp thoại. */
@@ -121,8 +142,40 @@ function handle<A extends z.ZodTypeAny[], T>(
 
 export function registerIpc(s: Services): void {
   handle(Channels.profilesList, [profileFilter], (f) => s.profiles.list(f ?? {}))
-  handle(Channels.profilesCreate, [profileInput], (input) => s.profiles.create(input))
-  handle(Channels.profilesUpdate, [id, profilePatch], (pid, patch) => s.profiles.update(pid, patch))
+  // Cookie đọc trước khi tạo/sửa để lỗi định dạng không để lại profile dở.
+  const readCookies = (text: string | undefined): CookieParam[] | null => {
+    if (text === undefined || !text.trim()) return null
+    try {
+      return parseCookies(text)
+    } catch (err) {
+      if (err instanceof CookieParseError) throw new IsolaError('COOKIES_INVALID', err.message)
+      throw err
+    }
+  }
+  handle(Channels.profilesCreate, [profileInput], ({ cookies, fingerprint, ...input }) => {
+    const parsed = readCookies(cookies)
+    const created = s.profiles.create({ ...input, fingerprint: fingerprint as never })
+    if (parsed) s.cookies.stage(created.id, parsed)
+    return created
+  })
+  handle(Channels.profilesUpdate, [id, profilePatch], (pid, { cookies, ...patch }) => {
+    const parsed = readCookies(cookies)
+    const updated = s.profiles.update(pid, patch)
+    if (parsed) s.cookies.stage(pid, parsed)
+    return updated
+  })
+  handle(Channels.profilesSetFingerprint, [id, fingerprintInput], (pid, fp) => s.profiles.setFingerprint(pid, fp as never))
+  handle(Channels.fingerprintsCatalog, [], () =>
+    compatibleEntries(s.profiles.host).map((e) => ({ id: e.id, label: e.label, os: e.os, gpuVendor: e.gpuVendor }))
+  )
+  handle(Channels.fingerprintsPreview, [previewOptions], (opts) => {
+    try {
+      return generateSeed(s.profiles.host, findSupportedKernel(DEFAULT_KERNEL_ID)!, opts ?? {})
+    } catch (err) {
+      if (err instanceof SeedError) throw new IsolaError('SEED_INVALID', err.message)
+      throw err
+    }
+  })
   handle(Channels.profilesArchive, [id], (pid) => (s.profiles.archive(pid), null))
   handle(Channels.profilesRestore, [id], (pid) => (s.profiles.restore(pid), null))
   handle(Channels.profilesPurge, [id, z.boolean()], (pid, confirmed) => (s.profiles.purge(pid, confirmed), null))
@@ -148,6 +201,7 @@ export function registerIpc(s: Services): void {
   handle(Channels.proxiesUpdate, [id, proxyPatch], (pid, patch) => s.proxies.update(pid, patch))
   handle(Channels.proxiesRemove, [id], (pid) => (s.proxies.remove(pid), null))
   handle(Channels.proxiesTest, [id], (pid) => s.proxies.test(pid))
+  handle(Channels.proxiesTestDraft, [proxyInput], (input) => s.proxies.testDraft(input))
   handle(Channels.proxiesTestMany, [z.array(id).max(500)], (ids) => s.proxies.testMany(ids))
   handle(Channels.proxiesImport, [z.string().max(200_000), proxyType], (text, type) => s.proxies.import(text, type))
   handle(Channels.proxiesRefreshIp, [id], (pid) => s.proxies.refreshIp(pid))

@@ -162,8 +162,24 @@ export class ProxyService {
 
   /** Kiểm qua relay giống hệt đường trình duyệt đi: lấy IP ra, tra geo offline, đo độ trễ. */
   async test(id: string): Promise<Proxy> {
-    const url = this.upstreamUrl(id)
-    let check: ProxyCheck
+    this.saveCheck(id, await this.check(this.upstreamUrl(id)))
+    return this.get(id)
+  }
+
+  /** Kiểm proxy chưa lưu (form tạo profile). Không ghi gì vào DB. */
+  testDraft(input: ProxyInput): Promise<ProxyCheck> {
+    return this.check(
+      upstreamUrl({
+        type: input.type,
+        host: input.host.trim(),
+        port: input.port,
+        username: input.username || null,
+        password: input.password || null
+      })
+    )
+  }
+
+  private async check(url: string): Promise<ProxyCheck> {
     const at = new Date().toISOString()
     const relay = await Relay.start(url)
     try {
@@ -171,7 +187,7 @@ export class ProxyService {
       const ip = await this.fetchIp(relay.port)
       const latencyMs = Date.now() - started
       const geo = this.geo.lookup(ip)
-      check = {
+      return {
         ip,
         country: geo?.country ?? null,
         city: geo?.city ?? null,
@@ -181,12 +197,10 @@ export class ProxyService {
         at
       }
     } catch (err) {
-      check = { ip: null, country: null, city: null, timezone: null, latencyMs: null, error: errMessage(err), at }
+      return { ip: null, country: null, city: null, timezone: null, latencyMs: null, error: errMessage(err), at }
     } finally {
       await relay.close()
     }
-    this.saveCheck(id, check)
-    return this.get(id)
   }
 
   async testMany(ids: string[]): Promise<Proxy[]> {

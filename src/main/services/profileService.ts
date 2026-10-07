@@ -1,8 +1,19 @@
 import { randomUUID } from 'node:crypto'
 import { rmSync } from 'node:fs'
-import type { Group, Profile, ProfileFilter, ProfileInput, ProfilePatch, Tag } from '../../shared/types'
+import type {
+  Group,
+  Profile,
+  ProfileFilter,
+  ProfileFingerprint,
+  ProfileInput,
+  ProfilePatch,
+  Seed,
+  Tag
+} from '../../shared/types'
 import type { Db } from '../db'
-import { DEFAULT_KERNEL_ID, findSupportedKernel } from '../engine/kernels'
+import { detectHostOs, type HostInfo } from '../engine/catalog'
+import { DEFAULT_KERNEL_ID, findSupportedKernel, type SupportedKernel } from '../engine/kernels'
+import { generateSeed, SeedError, validateSeed } from '../engine/seed'
 import { IsolaError } from '../errors'
 import { paths } from '../paths'
 import { audit } from './audit'
@@ -28,6 +39,9 @@ type ProfileRow = {
   proxy_error: string | null
   platform_label: string | null
   last_opened_at: string | null
+  fingerprint_id: string
+  seed_json: string
+  catalog_id: string
   lab: number
   notes: string | null
   deleted_at: string | null
@@ -40,8 +54,10 @@ const SELECT_PROFILE = `
          p.status, p.kernel, p.proxy_id, x.host AS proxy_host, x.label AS proxy_label, x.type AS proxy_type,
          x.last_check_ip AS proxy_ip, x.last_check_country AS proxy_country, x.last_check_error AS proxy_error,
          p.platform_label, p.lab, p.notes, p.deleted_at, p.created_at, p.updated_at,
+         p.fingerprint_id, f.seed_json, f.catalog_id,
          (SELECT MAX(a.at) FROM audit_log a WHERE a.profile_id = p.id AND a.action = 'open') AS last_opened_at
   FROM profiles p
+  JOIN fingerprints f ON f.id = p.fingerprint_id
   LEFT JOIN groups g ON g.id = p.group_id
   LEFT JOIN proxies x ON x.id = p.proxy_id`
 
@@ -53,11 +69,21 @@ function isUniqueViolation(err: unknown): boolean {
   return (err as { code?: string })?.code === 'SQLITE_CONSTRAINT_UNIQUE'
 }
 
+export interface ProfileServiceOptions {
+  /** OS và hãng GPU của máy, để chỉ sinh seed từ thiết bị hợp với máy. */
+  host?: HostInfo
+}
+
 export class ProfileService {
+  readonly host: HostInfo
+
   constructor(
     private readonly db: Db,
-    private readonly dataRoot: string
-  ) {}
+    private readonly dataRoot: string,
+    options: ProfileServiceOptions = {}
+  ) {
+    this.host = options.host ?? { os: detectHostOs(), gpuVendor: null }
+  }
 
   // ---------- profiles ----------
 
@@ -90,9 +116,11 @@ export class ProfileService {
 
   create(input: ProfileInput): Profile {
     const kernel = input.kernel ?? DEFAULT_KERNEL_ID
-    if (!findSupportedKernel(kernel)) throw new IsolaError('KERNEL_UNKNOWN')
+    const kernelInfo = findSupportedKernel(kernel)
+    if (!kernelInfo) throw new IsolaError('KERNEL_UNKNOWN')
     if (input.groupId) this.requireGroup(input.groupId)
     if (input.proxyId) this.requireProxy(input.proxyId)
+    const fp = input.fingerprint ? this.checkFingerprint(input.fingerprint, kernelInfo) : generateSeed(this.host, kernelInfo)
 
     const id = randomUUID()
     const ts = now()
@@ -101,11 +129,10 @@ export class ProfileService {
         const { next } = this.db.prepare('SELECT COALESCE(MAX(serial), 0) + 1 AS next FROM profiles').get() as {
           next: number
         }
-        // Phase 1: seed giữ chỗ. Phase 3 sinh seed thật từ catalog.
         const fingerprintId = randomUUID()
         this.db
           .prepare('INSERT INTO fingerprints (id, seed_json, catalog_id, created_at) VALUES (?, ?, ?, ?)')
-          .run(fingerprintId, JSON.stringify({ version: 0 }), 'pending', ts)
+          .run(fingerprintId, JSON.stringify(fp.seed), fp.catalogId, ts)
         this.db
           .prepare(
             `INSERT INTO profiles (id, serial, name, group_id, proxy_id, start_urls, username, kernel, fingerprint_id, lab, notes, platform_label, created_at, updated_at)
@@ -128,7 +155,7 @@ export class ProfileService {
             ts
           )
         this.setTags(id, input.tags ?? [])
-        audit(this.db, 'create', id, { serial: next, kernel, proxyId: input.proxyId ?? null })
+        audit(this.db, 'create', id, { serial: next, kernel, proxyId: input.proxyId ?? null, catalogId: fp.catalogId })
       })()
     } catch (err) {
       if (isUniqueViolation(err)) throw new IsolaError('NAME_TAKEN', `Tên "${input.name}" đã có`)
@@ -213,6 +240,58 @@ export class ProfileService {
       audit(this.db, 'purge', id, { serial: p.serial })
     })()
     rmSync(paths.profile(this.dataRoot, id), { recursive: true, force: true })
+  }
+
+  /**
+   * Seed của profile. Profile tạo trước Phase 4 còn seed giữ chỗ (version 0) thì sinh bù một lần
+   * và ghi audit seed_rotate; từ đó seed cố định.
+   */
+  getFingerprint(id: string): ProfileFingerprint {
+    const row = this.db
+      .prepare('SELECT f.id, f.seed_json, f.catalog_id, p.kernel FROM profiles p JOIN fingerprints f ON f.id = p.fingerprint_id WHERE p.id = ?')
+      .get(id) as { id: string; seed_json: string; catalog_id: string; kernel: string } | undefined
+    if (!row) throw new IsolaError('NOT_FOUND', `Không có profile ${id}`)
+    const seed = JSON.parse(row.seed_json) as Seed | { version: 0 }
+    if (seed.version === 1) return { catalogId: row.catalog_id, seed }
+
+    const kernel = findSupportedKernel(row.kernel)
+    if (!kernel) throw new IsolaError('KERNEL_UNKNOWN')
+    const fp = generateSeed(this.host, kernel)
+    this.db.transaction(() => {
+      this.db.prepare('UPDATE fingerprints SET seed_json = ?, catalog_id = ? WHERE id = ?').run(JSON.stringify(fp.seed), fp.catalogId, row.id)
+      audit(this.db, 'seed_rotate', id, { reason: 'backfill', catalogId: fp.catalogId })
+    })()
+    return fp
+  }
+
+  /** Đổi fingerprint có chủ đích (rotateSeed). Seed phải hợp lệ theo catalog; profile phải đang đóng. */
+  setFingerprint(id: string, fp: ProfileFingerprint): Profile {
+    const p = this.get(id)
+    if (p.deletedAt) throw new IsolaError('ARCHIVED')
+    if (p.status === 'running') throw new IsolaError('PROFILE_RUNNING')
+    const kernel = findSupportedKernel(p.kernel)
+    if (!kernel) throw new IsolaError('KERNEL_UNKNOWN')
+    const checked = this.checkFingerprint(fp, kernel)
+    const { fingerprint_id } = this.db.prepare('SELECT fingerprint_id FROM profiles WHERE id = ?').get(id) as { fingerprint_id: string }
+    this.db.transaction(() => {
+      this.db
+        .prepare('UPDATE fingerprints SET seed_json = ?, catalog_id = ? WHERE id = ?')
+        .run(JSON.stringify(checked.seed), checked.catalogId, fingerprint_id)
+      this.db.prepare('UPDATE profiles SET updated_at = ? WHERE id = ?').run(now(), id)
+      audit(this.db, 'seed_rotate', id, { catalogId: checked.catalogId })
+    })()
+    return this.get(id)
+  }
+
+  private checkFingerprint(fp: ProfileFingerprint, kernel: SupportedKernel): ProfileFingerprint {
+    try {
+      const seed = validateSeed(fp.catalogId, fp.seed, this.host)
+      if (seed.chromeMajor !== kernel.major) throw new SeedError('kernel lệch catalog')
+      return { catalogId: fp.catalogId, seed }
+    } catch (err) {
+      if (err instanceof SeedError) throw new IsolaError('SEED_INVALID', err.message)
+      throw err
+    }
   }
 
   setStatus(id: string, status: 'idle' | 'running'): void {
@@ -348,6 +427,10 @@ export class ProfileService {
         : null,
       platform: r.platform_label,
       lastOpenedAt: r.last_opened_at,
+      fingerprint: (() => {
+        const seed = JSON.parse(r.seed_json) as Seed | { version: 0 }
+        return seed.version === 1 ? { catalogId: r.catalog_id, seed } : null
+      })(),
       lab: r.lab === 1,
       notes: r.notes,
       deletedAt: r.deleted_at,
