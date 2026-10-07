@@ -19,6 +19,7 @@ type ProfileRow = {
   username: string | null
   status: Profile['status']
   kernel: string
+  proxy_id: string | null
   proxy_host: string | null
   lab: number
   notes: string | null
@@ -29,7 +30,7 @@ type ProfileRow = {
 
 const SELECT_PROFILE = `
   SELECT p.id, p.serial, p.name, p.group_id, g.name AS group_name, p.start_urls, p.username,
-         p.status, p.kernel, x.host AS proxy_host, p.lab, p.notes, p.deleted_at, p.created_at, p.updated_at
+         p.status, p.kernel, p.proxy_id, x.host AS proxy_host, p.lab, p.notes, p.deleted_at, p.created_at, p.updated_at
   FROM profiles p
   LEFT JOIN groups g ON g.id = p.group_id
   LEFT JOIN proxies x ON x.id = p.proxy_id`
@@ -81,6 +82,7 @@ export class ProfileService {
     const kernel = input.kernel ?? DEFAULT_KERNEL_ID
     if (!findSupportedKernel(kernel)) throw new IsolaError('KERNEL_UNKNOWN')
     if (input.groupId) this.requireGroup(input.groupId)
+    if (input.proxyId) this.requireProxy(input.proxyId)
 
     const id = randomUUID()
     const ts = now()
@@ -96,14 +98,15 @@ export class ProfileService {
           .run(fingerprintId, JSON.stringify({ version: 0 }), 'pending', ts)
         this.db
           .prepare(
-            `INSERT INTO profiles (id, serial, name, group_id, start_urls, username, kernel, fingerprint_id, lab, notes, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO profiles (id, serial, name, group_id, proxy_id, start_urls, username, kernel, fingerprint_id, lab, notes, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             id,
             next,
             input.name.trim(),
             input.groupId ?? null,
+            input.proxyId ?? null,
             JSON.stringify(input.startUrls ?? []),
             input.username ?? null,
             kernel,
@@ -114,7 +117,7 @@ export class ProfileService {
             ts
           )
         this.setTags(id, input.tags ?? [])
-        audit(this.db, 'create', id, { serial: next, kernel })
+        audit(this.db, 'create', id, { serial: next, kernel, proxyId: input.proxyId ?? null })
       })()
     } catch (err) {
       if (isUniqueViolation(err)) throw new IsolaError('NAME_TAKEN', `Tên "${input.name}" đã có`)
@@ -127,6 +130,9 @@ export class ProfileService {
     const current = this.get(id)
     if (current.deletedAt) throw new IsolaError('ARCHIVED')
     if (patch.groupId) this.requireGroup(patch.groupId)
+    if (patch.proxyId) this.requireProxy(patch.proxyId)
+    const proxyChanged = patch.proxyId !== undefined && patch.proxyId !== current.proxyId
+    if (proxyChanged && current.status === 'running') throw new IsolaError('PROFILE_RUNNING')
 
     const sets: string[] = []
     const args: unknown[] = []
@@ -136,6 +142,7 @@ export class ProfileService {
     }
     if (patch.name !== undefined) set('name', patch.name.trim())
     if (patch.groupId !== undefined) set('group_id', patch.groupId)
+    if (proxyChanged) set('proxy_id', patch.proxyId)
     if (patch.startUrls !== undefined) set('start_urls', JSON.stringify(patch.startUrls))
     if (patch.username !== undefined) set('username', patch.username)
     if (patch.notes !== undefined) set('notes', patch.notes)
@@ -146,6 +153,7 @@ export class ProfileService {
       this.db.transaction(() => {
         this.db.prepare(`UPDATE profiles SET ${sets.join(', ')} WHERE id = ?`).run(...args, id)
         if (patch.tags !== undefined) this.setTags(id, patch.tags)
+        if (proxyChanged) audit(this.db, 'proxy_change', id, { from: current.proxyId, to: patch.proxyId })
       })()
     } catch (err) {
       if (isUniqueViolation(err)) throw new IsolaError('NAME_TAKEN', `Tên "${patch.name}" đã có`)
@@ -263,6 +271,12 @@ export class ProfileService {
     }
   }
 
+  private requireProxy(id: string): void {
+    if (!this.db.prepare('SELECT 1 FROM proxies WHERE id = ?').get(id)) {
+      throw new IsolaError('NOT_FOUND', `Không có proxy ${id}`)
+    }
+  }
+
   private setTags(profileId: string, names: string[]): void {
     const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))]
     this.db.prepare('DELETE FROM profile_tags WHERE profile_id = ?').run(profileId)
@@ -306,6 +320,7 @@ export class ProfileService {
       username: r.username,
       status: r.status,
       kernel: r.kernel,
+      proxyId: r.proxy_id,
       proxyHost: r.proxy_host,
       lab: r.lab === 1,
       notes: r.notes,

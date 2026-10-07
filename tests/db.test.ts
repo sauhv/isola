@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadMigrations, migrate, openDatabase } from '../src/main/db'
 
 const require = createRequire(import.meta.url)
+const LATEST = loadMigrations().at(-1)!.version
 
 let dir: string
 
@@ -19,11 +20,11 @@ afterEach(() => {
 })
 
 describe('db', () => {
-  it('mở DB với WAL, foreign_keys và đủ bảng của 001_init', () => {
+  it('mở DB với WAL, foreign_keys, đủ bảng và chạy hết migration', () => {
     const db = openDatabase(join(dir, 'isola.db'))
     expect(db.pragma('journal_mode', { simple: true })).toBe('wal')
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1)
-    expect(db.pragma('user_version', { simple: true })).toBe(1)
+    expect(db.pragma('user_version', { simple: true })).toBe(LATEST)
 
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -47,7 +48,7 @@ describe('db', () => {
     const file = join(dir, 'isola.db')
     openDatabase(file).close()
     const db = openDatabase(file)
-    expect(migrate(db)).toBe(1)
+    expect(migrate(db)).toBe(LATEST)
     db.close()
   })
 
@@ -55,10 +56,10 @@ describe('db', () => {
     const db = openDatabase(join(dir, 'isola.db'))
     const broken = [
       ...loadMigrations(),
-      { version: 2, name: '002_broken.sql', sql: 'CREATE TABLE half_done (id TEXT); SELECT * FROM missing_table;' }
+      { version: LATEST + 1, name: '999_broken.sql', sql: 'CREATE TABLE half_done (id TEXT); SELECT * FROM missing_table;' }
     ]
     expect(() => migrate(db, broken)).toThrow()
-    expect(db.pragma('user_version', { simple: true })).toBe(1)
+    expect(db.pragma('user_version', { simple: true })).toBe(LATEST)
     const half = db.prepare("SELECT name FROM sqlite_master WHERE name='half_done'").get()
     expect(half).toBeUndefined()
     db.close()

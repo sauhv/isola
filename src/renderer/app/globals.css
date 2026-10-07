@@ -315,3 +315,39 @@ td.actions {
   height: 100%;
   background: var(--accent);
 }
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.small-text {
+  font-size: 12px;
+}
+
+.status.down::before {
+  background: var(--danger);
+}
+
+.status.down {
+  color: var(--danger);
+  cursor: help;
+}
+
+.tag.warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.ok-bar {
+  background: #f0fdf4;
+  color: #166534;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+td.wrap {
+  white-space: normal;
+  max-width: 320px;
+}

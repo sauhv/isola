@@ -1,0 +1,119 @@
+'use client'
+
+import { useState, type FormEvent } from 'react'
+import type { Proxy, ProxyType } from '../../shared/types'
+import { call, isola } from '../lib/isola'
+
+interface Props {
+  proxy: Proxy | null
+  onClose: () => void
+  onSaved: () => void
+}
+
+export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
+  const [label, setLabel] = useState(proxy?.label ?? '')
+  const [type, setType] = useState<ProxyType>(proxy?.type ?? 'http')
+  const [host, setHost] = useState(proxy?.host ?? '')
+  const [port, setPort] = useState(proxy ? String(proxy.port) : '')
+  const [username, setUsername] = useState(proxy?.username ?? '')
+  // Password không bao giờ được gửi xuống renderer. Ô trống khi sửa = giữ nguyên.
+  const [password, setPassword] = useState('')
+  const [clearPassword, setClearPassword] = useState(false)
+  const [refreshUrl, setRefreshUrl] = useState(proxy?.refreshUrl ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    const fields = {
+      label: label.trim() || undefined,
+      type,
+      host: host.trim(),
+      port: Number(port),
+      username: username.trim() || null,
+      refreshUrl: refreshUrl.trim() || null,
+      ...(clearPassword ? { password: null } : password ? { password } : proxy ? {} : { password: null })
+    }
+    try {
+      if (proxy) await call(isola().proxies.update(proxy.id, fields))
+      else await call(isola().proxies.create(fields))
+      onSaved()
+    } catch (err) {
+      setError((err as Error).message)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <form className="dialog" onSubmit={submit} autoComplete="off">
+        <h2>{proxy ? 'Sửa proxy' : 'Thêm proxy'}</h2>
+        {error && <div className="error-bar">{error}</div>}
+        <div className="form">
+          <label className="field">
+            <span>Nhãn</span>
+            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Để trống = host:port" />
+          </label>
+          <div className="form-row">
+            <label className="field" style={{ width: 120 }}>
+              <span>Loại</span>
+              <select value={type} onChange={(e) => setType(e.target.value as ProxyType)}>
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks5">SOCKS5</option>
+              </select>
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Host</span>
+              <input value={host} onChange={(e) => setHost(e.target.value)} required autoFocus />
+            </label>
+            <label className="field" style={{ width: 100 }}>
+              <span>Port</span>
+              <input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))} required inputMode="numeric" />
+            </label>
+          </div>
+          <div className="form-row">
+            <label className="field" style={{ flex: 1 }}>
+              <span>Username</span>
+              <input value={username} onChange={(e) => setUsername(e.target.value)} />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Password</span>
+              <input
+                type="password"
+                value={password}
+                disabled={clearPassword}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={proxy?.hasPassword ? '•••••• (giữ nguyên)' : ''}
+              />
+            </label>
+          </div>
+          {proxy?.hasPassword && (
+            <label className="checkbox">
+              <input type="checkbox" checked={clearPassword} onChange={(e) => setClearPassword(e.target.checked)} />
+              Xóa password đã lưu
+            </label>
+          )}
+          <label className="field">
+            <span>URL đổi IP (proxy xoay)</span>
+            <input value={refreshUrl} onChange={(e) => setRefreshUrl(e.target.value)} placeholder="https://..." />
+            <span className="hint">Tùy chọn. Isola gọi URL này khi bấm "Đổi IP", rồi kiểm tra lại proxy.</span>
+          </label>
+          <p className="hint muted small-text" style={{ margin: 0 }}>
+            Password được mã hóa bằng khóa của Windows/macOS (safeStorage) trước khi lưu.
+          </p>
+        </div>
+        <div className="dialog-actions">
+          <button type="button" onClick={onClose}>
+            Hủy
+          </button>
+          <button type="submit" className="primary" disabled={saving || !host.trim() || !port}>
+            {proxy ? 'Lưu' : 'Thêm'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}

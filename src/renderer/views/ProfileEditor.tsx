@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import type { Group, Profile } from '../../shared/types'
+import type { Group, Profile, Proxy } from '../../shared/types'
 import { call, isola } from '../lib/isola'
 
 interface Props {
   profile: Profile | null
   groups: Group[]
+  proxies: Proxy[]
   onClose: () => void
   onSaved: () => void
 }
@@ -23,9 +24,10 @@ const splitTags = (s: string) =>
     .map((t) => t.trim())
     .filter(Boolean)
 
-export default function ProfileEditor({ profile, groups, onClose, onSaved }: Props) {
+export default function ProfileEditor({ profile, groups, proxies, onClose, onSaved }: Props) {
   const [name, setName] = useState(profile?.name ?? '')
   const [groupId, setGroupId] = useState(profile?.groupId ?? '')
+  const [proxyId, setProxyId] = useState(profile?.proxyId ?? '')
   const [tags, setTags] = useState(profile?.tags.map((t) => t.name).join(', ') ?? '')
   const [startUrls, setStartUrls] = useState(profile?.startUrls.join('\n') ?? '')
   const [username, setUsername] = useState(profile?.username ?? '')
@@ -41,6 +43,7 @@ export default function ProfileEditor({ profile, groups, onClose, onSaved }: Pro
     const fields = {
       name,
       groupId: groupId || null,
+      proxyId: proxyId || null,
       tags: splitTags(tags),
       startUrls: splitLines(startUrls),
       username: username.trim() || null,
@@ -77,6 +80,21 @@ export default function ProfileEditor({ profile, groups, onClose, onSaved }: Pro
                 </option>
               ))}
             </select>
+          </label>
+          <label className="field">
+            <span>Proxy</span>
+            <select value={proxyId} onChange={(e) => setProxyId(e.target.value)}>
+              <option value="">Không proxy (chỉ profile lab mới mở được)</option>
+              {proxies.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} · {p.type}
+                  {p.lastCheck && !p.lastCheck.error ? ` · ${p.lastCheck.ip} ${p.lastCheck.country ?? ''}` : ''}
+                  {p.lastCheck?.error ? ' · lỗi' : ''}
+                  {p.profileCount > 0 && p.id !== profile?.proxyId ? ` · đang dùng bởi ${p.profileCount} profile` : ''}
+                </option>
+              ))}
+            </select>
+            {profile?.status === 'running' && <span className="hint">Đóng profile trước khi đổi proxy.</span>}
           </label>
           <label className="field">
             <span>Tag</span>

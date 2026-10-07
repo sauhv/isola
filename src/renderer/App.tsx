@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import KernelsPage from './views/KernelsPage'
 import ProfilesPage from './views/ProfilesPage'
+import ProxiesPage from './views/ProxiesPage'
 
 // Các màn nằm trong src/renderer/views (không dùng tên `pages` vì Next.js coi đó là Pages Router).
-type Page = 'profiles' | 'kernels'
+type Page = 'profiles' | 'proxies' | 'kernels'
 
 const NAV: { id: Page; label: string }[] = [
   { id: 'profiles', label: 'Profile' },
+  { id: 'proxies', label: 'Proxy' },
   { id: 'kernels', label: 'Kernel' }
 ]
 
@@ -24,7 +26,11 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <main className="main">{page === 'profiles' ? <ProfilesPage /> : <KernelsPage />}</main>
+      <main className="main">
+        {page === 'profiles' && <ProfilesPage />}
+        {page === 'proxies' && <ProxiesPage />}
+        {page === 'kernels' && <KernelsPage />}
+      </main>
     </div>
   )
 }

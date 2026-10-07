@@ -15,9 +15,20 @@ export const Channels = {
   tagsList: 'tags:list',
   kernelsList: 'kernels:list',
   kernelsInstall: 'kernels:install',
+  proxiesList: 'proxies:list',
+  proxiesCreate: 'proxies:create',
+  proxiesUpdate: 'proxies:update',
+  proxiesRemove: 'proxies:remove',
+  proxiesTest: 'proxies:test',
+  proxiesTestMany: 'proxies:test-many',
+  proxiesImport: 'proxies:import',
+  proxiesRefreshIp: 'proxies:refresh-ip',
+  geoStatus: 'geo:status',
+  geoInstall: 'geo:install',
   // main → renderer
   evtProfileStatus: 'evt:profile-status',
-  evtKernelProgress: 'evt:kernel-progress'
+  evtKernelProgress: 'evt:kernel-progress',
+  evtGeoProgress: 'evt:geo-progress'
 } as const
 
 export type { Result } from '../../shared/types'

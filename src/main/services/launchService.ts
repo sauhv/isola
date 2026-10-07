@@ -5,11 +5,13 @@ import type { Readable, Writable } from 'node:stream'
 import type { ProfileStatusEvent } from '../../shared/types'
 import type { Db } from '../db'
 import { CdpPipe } from '../engine/cdpPipe'
+import { Relay } from '../engine/relay'
 import { IsolaError } from '../errors'
 import { paths } from '../paths'
 import { audit } from './audit'
 import type { KernelService } from './kernelService'
 import type { ProfileService } from './profileService'
+import type { ProxyService } from './proxyService'
 
 const STOP_GRACE_MS = 5_000
 
@@ -17,6 +19,7 @@ type Running = {
   proc: ChildProcess
   pid: number
   cdp: CdpPipe
+  relay: Relay | null
   exited: Promise<void>
 }
 
@@ -38,6 +41,7 @@ export class LaunchService extends EventEmitter {
     private readonly dataRoot: string,
     private readonly profiles: ProfileService,
     private readonly kernels: KernelService,
+    private readonly proxies: ProxyService,
     private readonly options: LaunchOptions = {}
   ) {
     super()
@@ -61,8 +65,20 @@ export class LaunchService extends EventEmitter {
     if (profile.deletedAt) throw new IsolaError('ARCHIVED')
     const exe = this.kernels.executablePath(profile.kernel)
 
+    if (!profile.proxyId && !profile.lab) throw new IsolaError('PROXY_REQUIRED')
+
     this.starting.add(id)
+    let relay: Relay | null = null
     try {
+      if (profile.proxyId) {
+        // Kết quả kiểm cũ hơn 6 giờ (hoặc lần trước lỗi) thì kiểm lại. Lỗi thì không spawn.
+        let proxy = this.proxies.get(profile.proxyId)
+        if (!this.proxies.isCheckFresh(proxy)) proxy = await this.proxies.test(proxy.id)
+        if (proxy.lastCheck?.error) throw new IsolaError('PROXY_DOWN', proxy.lastCheck.error)
+        if (!profile.lab && !proxy.lastCheck?.timezone) throw new IsolaError('PROXY_NO_TZ')
+        relay = await Relay.start(this.proxies.upstreamUrl(proxy.id))
+      }
+
       const userDataDir = paths.userData(this.dataRoot, id)
       mkdirSync(userDataDir, { recursive: true })
 
@@ -74,6 +90,17 @@ export class LaunchService extends EventEmitter {
         '--disable-background-networking',
         '--disable-component-update',
         '--disk-cache-size=268435456',
+        // WebRTC chỉ được đi qua proxy (TCP), không lộ IP thật hay IP LAN qua UDP.
+        '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+        ...(relay
+          ? [
+              `--proxy-server=${relay.proxyServerArg}`,
+              // Cấm Chrome tự phân giải DNS: mọi tên miền phải đi qua proxy.
+              '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1',
+              // QUIC là UDP, không đi qua HTTP proxy được.
+              '--disable-quic'
+            ]
+          : []),
         ...(this.options.extraArgs ?? []),
         ...(profile.startUrls.length ? profile.startUrls : ['about:blank'])
       ]
@@ -93,19 +120,23 @@ export class LaunchService extends EventEmitter {
         throw err instanceof IsolaError ? err : new IsolaError('LAUNCH_FAILED', String(err))
       }
 
-      const entry: Running = { proc, pid: proc.pid!, cdp, exited }
+      const entry: Running = { proc, pid: proc.pid!, cdp, relay, exited }
+      relay = null // từ đây entry giữ relay và đóng nó khi process thoát
       this.running.set(id, entry)
       this.profiles.setStatus(id, 'running')
-      audit(this.db, 'open', id, { pid: entry.pid, kernel: profile.kernel })
+      audit(this.db, 'open', id, { pid: entry.pid, kernel: profile.kernel, proxyId: profile.proxyId })
       this.emitStatus({ id, status: 'running' })
 
       proc.once('exit', (code, signal) => {
+        entry.relay?.close().catch(() => {})
         if (this.running.get(id) === entry) this.running.delete(id)
         this.profiles.setStatus(id, 'idle')
         audit(this.db, 'close', id, { pid: entry.pid, code, signal })
         this.emitStatus({ id, status: 'idle' })
       })
     } finally {
+      // Chỉ còn khác null khi launch lỗi giữa chừng.
+      await relay?.close().catch(() => {})
       this.starting.delete(id)
     }
   }

@@ -5,9 +5,12 @@ import { pathToFileURL } from 'node:url'
 import { openDatabase, type Db } from './db'
 import { registerIpc } from './ipc/register'
 import { paths } from './paths'
+import { GeoService } from './services/geoService'
 import { KernelService } from './services/kernelService'
 import { LaunchService } from './services/launchService'
 import { ProfileService } from './services/profileService'
+import { ProxyService } from './services/proxyService'
+import { createSafeStorageBox } from './services/secretService'
 
 const APP_SCHEME = 'app'
 const APP_ORIGIN = `${APP_SCHEME}://isola`
@@ -36,7 +39,7 @@ protocol.registerSchemesAsPrivileged([
 
 function prepareDataRoot(): string {
   const dataRoot = app.getPath('userData')
-  for (const dir of ['profiles', 'logs', 'kernels']) {
+  for (const dir of ['profiles', 'logs', 'kernels', 'geoip']) {
     mkdirSync(join(dataRoot, dir), { recursive: true })
   }
   return dataRoot
@@ -106,8 +109,10 @@ if (!app.requestSingleInstanceLock()) {
       const profiles = new ProfileService(db, dataRoot)
       profiles.resetStaleRunning()
       const kernels = new KernelService(paths.kernels(dataRoot))
-      launcher = new LaunchService(db, dataRoot, profiles, kernels)
-      registerIpc({ profiles, launcher, kernels, target: () => mainWindow?.webContents ?? null })
+      const geo = new GeoService(paths.geoip(dataRoot))
+      const proxies = new ProxyService(db, createSafeStorageBox(), geo)
+      launcher = new LaunchService(db, dataRoot, profiles, kernels, proxies)
+      registerIpc({ profiles, proxies, geo, launcher, kernels, target: () => mainWindow?.webContents ?? null })
     } catch (err) {
       dialog.showErrorBox('Isola không khởi động được', String(err))
       app.exit(1)

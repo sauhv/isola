@@ -11,6 +11,12 @@ export type ErrorCode =
   | 'KERNEL_MISSING'
   | 'KERNEL_UNKNOWN'
   | 'LAUNCH_FAILED'
+  | 'PROXY_REQUIRED'
+  | 'PROXY_DOWN'
+  | 'PROXY_NO_TZ'
+  | 'PROXY_IN_USE'
+  | 'NO_REFRESH_URL'
+  | 'REFRESH_FAILED'
 
 export class IsolaError extends Error {
   constructor(

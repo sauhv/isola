@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { Group, Profile, ProfileFilter, Tag } from '../../shared/types'
+import type { Group, Profile, ProfileFilter, Proxy, Tag } from '../../shared/types'
 import { call, isola } from '../lib/isola'
 import GroupsDialog from './GroupsDialog'
 import ProfileEditor from './ProfileEditor'
@@ -10,6 +10,7 @@ export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [tags, setTags] = useState<Tag[]>([])
+  const [proxies, setProxies] = useState<Proxy[]>([])
   const [filter, setFilter] = useState<ProfileFilter>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<Set<string>>(new Set())
@@ -18,14 +19,16 @@ export default function ProfilesPage() {
 
   const reload = useCallback(async () => {
     try {
-      const [p, g, t] = await Promise.all([
+      const [p, g, t, x] = await Promise.all([
         call(isola().profiles.list(filter)),
         call(isola().groups.list()),
-        call(isola().tags.list())
+        call(isola().tags.list()),
+        call(isola().proxies.list())
       ])
       setProfiles(p)
       setGroups(g)
       setTags(t)
+      setProxies(x)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -218,6 +221,7 @@ export default function ProfilesPage() {
         <ProfileEditor
           profile={editing === 'new' ? null : editing}
           groups={groups}
+          proxies={proxies}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null)

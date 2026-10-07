@@ -17,12 +17,25 @@ const MESSAGES: Record<string, string> = {
   KERNEL_MISSING: 'Chưa tải kernel cho profile này. Vào mục Kernel để tải.',
   KERNEL_UNKNOWN: 'Kernel không được hỗ trợ.',
   LAUNCH_FAILED: 'Không mở được trình duyệt.',
+  INVALID_INPUT: 'Dữ liệu không hợp lệ.',
+  PROXY_REQUIRED: 'Profile production phải có proxy. Gán proxy, hoặc đánh dấu là profile lab.',
+  PROXY_DOWN: 'Proxy không hoạt động nên profile không được mở.',
+  PROXY_NO_TZ:
+    'Chưa xác định được timezone của proxy nên profile production không được mở. Tải dữ liệu GeoIP ở mục Proxy rồi kiểm tra lại proxy.',
+  PROXY_IN_USE: 'Proxy đang được gán cho profile. Gỡ khỏi profile trước khi xóa.',
+  NO_REFRESH_URL: 'Proxy này chưa có URL đổi IP.',
+  REFRESH_FAILED: 'Gọi URL đổi IP thất bại.',
   INTERNAL: 'Lỗi nội bộ. Xem log để biết thêm.'
 }
 
-export function errorText(code: string): string {
-  if (code.startsWith('INVALID_INPUT')) return `Dữ liệu không hợp lệ: ${code.slice('INVALID_INPUT: '.length)}`
-  return MESSAGES[code] ?? code
+/** Lỗi từ main có dạng "CODE" hoặc "CODE: chi tiết". */
+export function errorText(error: string): string {
+  const sep = error.indexOf(': ')
+  const code = sep >= 0 ? error.slice(0, sep) : error
+  const detail = sep >= 0 ? error.slice(sep + 2) : ''
+  const base = MESSAGES[code]
+  if (!base) return error
+  return detail ? `${base} (${detail})` : base
 }
 
 export class ApiError extends Error {}

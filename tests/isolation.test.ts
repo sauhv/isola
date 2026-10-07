@@ -7,6 +7,8 @@ import { DEFAULT_KERNEL_ID } from '../src/main/engine/kernels'
 import { KernelService } from '../src/main/services/kernelService'
 import { LaunchService } from '../src/main/services/launchService'
 import { ProfileService } from '../src/main/services/profileService'
+import { ProxyService } from '../src/main/services/proxyService'
+import { fakeGeo, testSecretBox } from './helpers/fakeNet'
 
 // Kernel tải một lần vào tests/.cache (gitignore), các lần chạy sau dùng lại.
 const KERNEL_CACHE = join(__dirname, '.cache', 'kernels')
@@ -35,7 +37,8 @@ beforeAll(async () => {
   const kernels = new KernelService(KERNEL_CACHE)
   await kernels.install(DEFAULT_KERNEL_ID)
   profiles = new ProfileService(db, dataRoot)
-  launcher = new LaunchService(db, dataRoot, profiles, kernels, { extraArgs: ['--headless=new'] })
+  const proxies = new ProxyService(db, testSecretBox(), fakeGeo)
+  launcher = new LaunchService(db, dataRoot, profiles, kernels, proxies, { extraArgs: ['--headless=new'] })
 }, 600_000)
 
 afterAll(async () => {
@@ -46,8 +49,8 @@ afterAll(async () => {
 
 describe('isolation', () => {
   it('cookie set ở profile A không có ở profile B, và A giữ cookie sau khi mở lại', async () => {
-    const a = profiles.create({ name: 'A' })
-    const b = profiles.create({ name: 'B' })
+    const a = profiles.create({ name: 'A', lab: true })
+    const b = profiles.create({ name: 'B', lab: true })
 
     await launcher.start(a.id)
     await launcher.start(b.id)
@@ -79,7 +82,7 @@ describe('isolation', () => {
   }, 120_000)
 
   it('mở profile đang chạy trả ALREADY_RUNNING', async () => {
-    const c = profiles.create({ name: 'C' })
+    const c = profiles.create({ name: 'C', lab: true })
     await launcher.start(c.id)
     await expect(launcher.start(c.id)).rejects.toMatchObject({ code: 'ALREADY_RUNNING' })
     await launcher.stop(c.id)

@@ -35,8 +35,23 @@ const api: IsolaApi = {
     list: () => invoke(Channels.kernelsList),
     install: (id) => invoke(Channels.kernelsInstall, id)
   },
+  proxies: {
+    list: () => invoke(Channels.proxiesList),
+    create: (input) => invoke(Channels.proxiesCreate, input),
+    update: (id, patch) => invoke(Channels.proxiesUpdate, id, patch),
+    remove: (id) => invoke(Channels.proxiesRemove, id),
+    test: (id) => invoke(Channels.proxiesTest, id),
+    testMany: (ids) => invoke(Channels.proxiesTestMany, ids),
+    import: (text, defaultType) => invoke(Channels.proxiesImport, text, defaultType),
+    refreshIp: (id) => invoke(Channels.proxiesRefreshIp, id)
+  },
+  geo: {
+    status: () => invoke(Channels.geoStatus),
+    install: () => invoke(Channels.geoInstall)
+  },
   onProfileStatus: (cb) => subscribe(Channels.evtProfileStatus, cb),
-  onKernelProgress: (cb) => subscribe(Channels.evtKernelProgress, cb)
+  onKernelProgress: (cb) => subscribe(Channels.evtKernelProgress, cb),
+  onGeoProgress: (cb) => subscribe(Channels.evtGeoProgress, cb)
 }
 
 contextBridge.exposeInMainWorld('isola', api)
