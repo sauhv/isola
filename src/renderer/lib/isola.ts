@@ -25,6 +25,12 @@ const MESSAGES: Record<string, string> = {
   PROXY_IN_USE: 'Proxy đang được gán cho profile. Gỡ khỏi profile trước khi xóa.',
   NO_REFRESH_URL: 'Proxy này chưa có URL đổi IP.',
   REFRESH_FAILED: 'Gọi URL đổi IP thất bại.',
+  EXT_INVALID: 'Extension không hợp lệ.',
+  EXT_NOT_FOUND_IN_STORE: 'Không tìm thấy extension trên Chrome Web Store (sai ID, đã gỡ, hoặc không hỗ trợ Chrome này).',
+  EXT_DOWNLOAD_FAILED: 'Không tải được extension từ Chrome Web Store.',
+  EXT_ID_MISMATCH: 'File mới là một extension khác (ID không khớp).',
+  EXT_NOT_STORE: 'Extension này không đến từ Web Store. Dùng Cập nhật từ file.',
+  EXT_PATH_INVALID: 'Đường dẫn extension không dùng được.',
   INTERNAL: 'Lỗi nội bộ. Xem log để biết thêm.'
 }
 

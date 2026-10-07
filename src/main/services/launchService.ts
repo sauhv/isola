@@ -9,9 +9,19 @@ import { Relay } from '../engine/relay'
 import { IsolaError } from '../errors'
 import { paths } from '../paths'
 import { audit } from './audit'
+import type { ExtensionService } from './extensionService'
 import type { KernelService } from './kernelService'
 import type { ProfileService } from './profileService'
 import type { ProxyService } from './proxyService'
+
+export interface LaunchDeps {
+  db: Db
+  dataRoot: string
+  profiles: ProfileService
+  kernels: KernelService
+  proxies: ProxyService
+  extensions: ExtensionService
+}
 
 const STOP_GRACE_MS = 5_000
 
@@ -36,15 +46,24 @@ export class LaunchService extends EventEmitter {
   private running = new Map<string, Running>()
   private starting = new Set<string>()
 
+  private readonly db: Db
+  private readonly dataRoot: string
+  private readonly profiles: ProfileService
+  private readonly kernels: KernelService
+  private readonly proxies: ProxyService
+  private readonly extensions: ExtensionService
+
   constructor(
-    private readonly db: Db,
-    private readonly dataRoot: string,
-    private readonly profiles: ProfileService,
-    private readonly kernels: KernelService,
-    private readonly proxies: ProxyService,
+    deps: LaunchDeps,
     private readonly options: LaunchOptions = {}
   ) {
     super()
+    this.db = deps.db
+    this.dataRoot = deps.dataRoot
+    this.profiles = deps.profiles
+    this.kernels = deps.kernels
+    this.proxies = deps.proxies
+    this.extensions = deps.extensions
   }
 
   isRunning(id: string): boolean {
@@ -66,6 +85,11 @@ export class LaunchService extends EventEmitter {
     const exe = this.kernels.executablePath(profile.kernel)
 
     if (!profile.proxyId && !profile.lab) throw new IsolaError('PROXY_REQUIRED')
+    // Chrome tách danh sách --load-extension bằng dấu phẩy, nên đường dẫn có dấu phẩy sẽ hỏng.
+    const extensionDirs = this.extensions.dirsForProfile(id)
+    if (extensionDirs.some((d) => d.includes(','))) {
+      throw new IsolaError('EXT_PATH_INVALID', 'Đường dẫn dữ liệu Isola chứa dấu phẩy')
+    }
 
     this.starting.add(id)
     let relay: Relay | null = null
@@ -101,6 +125,7 @@ export class LaunchService extends EventEmitter {
               '--disable-quic'
             ]
           : []),
+        ...(extensionDirs.length ? [`--load-extension=${extensionDirs.join(',')}`] : []),
         ...(this.options.extraArgs ?? []),
         ...(profile.startUrls.length ? profile.startUrls : ['about:blank'])
       ]
@@ -124,7 +149,12 @@ export class LaunchService extends EventEmitter {
       relay = null // từ đây entry giữ relay và đóng nó khi process thoát
       this.running.set(id, entry)
       this.profiles.setStatus(id, 'running')
-      audit(this.db, 'open', id, { pid: entry.pid, kernel: profile.kernel, proxyId: profile.proxyId })
+      audit(this.db, 'open', id, {
+        pid: entry.pid,
+        kernel: profile.kernel,
+        proxyId: profile.proxyId,
+        extensions: extensionDirs.length
+      })
       this.emitStatus({ id, status: 'running' })
 
       proc.once('exit', (code, signal) => {

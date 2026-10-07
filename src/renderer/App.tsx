@@ -1,16 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import ExtensionsPage from './views/ExtensionsPage'
 import KernelsPage from './views/KernelsPage'
 import ProfilesPage from './views/ProfilesPage'
 import ProxiesPage from './views/ProxiesPage'
 
 // Các màn nằm trong src/renderer/views (không dùng tên `pages` vì Next.js coi đó là Pages Router).
-type Page = 'profiles' | 'proxies' | 'kernels'
+type Page = 'profiles' | 'proxies' | 'extensions' | 'kernels'
 
 const NAV: { id: Page; label: string }[] = [
   { id: 'profiles', label: 'Profile' },
   { id: 'proxies', label: 'Proxy' },
+  { id: 'extensions', label: 'Extension' },
   { id: 'kernels', label: 'Kernel' }
 ]
 
@@ -29,6 +31,7 @@ export default function App() {
       <main className="main">
         {page === 'profiles' && <ProfilesPage />}
         {page === 'proxies' && <ProxiesPage />}
+        {page === 'extensions' && <ExtensionsPage />}
         {page === 'kernels' && <KernelsPage />}
       </main>
     </div>

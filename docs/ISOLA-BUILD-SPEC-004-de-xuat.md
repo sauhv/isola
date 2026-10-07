@@ -181,8 +181,8 @@ Mục tiêu tương đương "Extension center" của AdsPower, chạy local.
 |---|---|---|
 | 0 ✅ | Electron + Next shell, dataRoot, migration WAL | DB, kill giữa chừng |
 | 1 ✅ | CRUD profile/nhóm/tag, kernel CfT, launch qua CDP pipe, UI Profile + Kernel | cookie A không có ở B; CRUD |
-| 2 | Proxy: CRUD, import, relay, kill-switch, GeoIP, safeStorage cho password, chặn mở khi proxy lỗi, gán proxy cho profile, refresh_url | proxy giả local (http + socks5, có auth); upstream chết → không đi thẳng; DB không có plaintext |
-| 3 | Extension center: thêm từ Web Store/file, giữ ID, phạm vi gán, nạp lúc launch, cập nhật | CRX → đúng ID; profile A có extension, B không; dữ liệu extension giữ sau cập nhật |
+| 2 ✅ | Proxy: CRUD, import, relay, kill-switch, GeoIP, safeStorage cho password, chặn mở khi proxy lỗi, gán proxy cho profile, refresh_url | proxy giả local (http + socks5, có auth); upstream chết → không đi thẳng; DB không có plaintext |
+| 3 ✅ | Extension center: thêm từ Web Store/file, giữ ID, phạm vi gán, nạp lúc launch, cập nhật | CRX → đúng ID; profile A có extension, B không; dữ liệu extension giữ sau cập nhật |
 | 4 | Fingerprint: seed + catalog + CDP override + trang tự kiểm, rotateSeed, nâng kernel | `seedStability`; UA/UA-CH/timezone khớp `effective` |
 | 5 | Profile nâng cao: thao tác hàng loạt, tạo hàng loạt, CSV/XLSX, nhân bản, cookie import/export, `.isola`, sắp cửa sổ | theo từng mục |
 | sau v1 | Local API & MCP, RPA, Synchronizer, AI Agent, Team, Billing | — |

@@ -17,6 +17,12 @@ export type ErrorCode =
   | 'PROXY_IN_USE'
   | 'NO_REFRESH_URL'
   | 'REFRESH_FAILED'
+  | 'EXT_INVALID'
+  | 'EXT_NOT_FOUND_IN_STORE'
+  | 'EXT_DOWNLOAD_FAILED'
+  | 'EXT_ID_MISMATCH'
+  | 'EXT_NOT_STORE'
+  | 'EXT_PATH_INVALID'
 
 export class IsolaError extends Error {
   constructor(

@@ -131,6 +131,37 @@ export interface DownloadProgress {
   totalBytes: number
 }
 
+export type ExtensionScope = 'all' | 'groups' | 'profiles'
+
+export interface Extension {
+  id: string
+  name: string
+  version: string
+  description: string | null
+  source: 'store' | 'file'
+  permissions: string[]
+  icon: string | null
+  enabled: boolean
+  scope: ExtensionScope
+  groupIds: string[]
+  profileIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExtensionPatch {
+  enabled?: boolean
+  scope?: ExtensionScope
+  groupIds?: string[]
+  profileIds?: string[]
+}
+
+export interface ExtensionUpdateInfo {
+  id: string
+  current: string
+  latest: string | null
+}
+
 export interface ProfileStatusEvent {
   id: string
   status: ProfileStatus
@@ -169,6 +200,18 @@ export interface IsolaApi {
   geo: {
     status(): Promise<Result<GeoStatus>>
     install(): Promise<Result<GeoStatus>>
+  }
+  extensions: {
+    list(): Promise<Result<Extension[]>>
+    addFromStore(urlOrId: string): Promise<Result<Extension>>
+    /** Mở hộp thoại chọn file .crx/.zip hoặc thư mục. null nếu người dùng hủy. */
+    addFromFile(kind: 'file' | 'folder'): Promise<Result<Extension | null>>
+    /** Cập nhật extension tự làm từ file mới, giữ nguyên ID. */
+    updateFromFile(id: string, kind: 'file' | 'folder'): Promise<Result<Extension | null>>
+    update(id: string, patch: ExtensionPatch): Promise<Result<Extension>>
+    remove(id: string): Promise<Result<null>>
+    checkUpdates(): Promise<Result<ExtensionUpdateInfo[]>>
+    updateFromStore(id: string): Promise<Result<Extension>>
   }
   kernels: {
     list(): Promise<Result<KernelInfo[]>>

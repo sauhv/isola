@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url'
 import { openDatabase, type Db } from './db'
 import { registerIpc } from './ipc/register'
 import { paths } from './paths'
+import { DEFAULT_KERNEL_ID, findSupportedKernel } from './engine/kernels'
+import { ExtensionService } from './services/extensionService'
 import { GeoService } from './services/geoService'
 import { KernelService } from './services/kernelService'
 import { LaunchService } from './services/launchService'
@@ -39,7 +41,7 @@ protocol.registerSchemesAsPrivileged([
 
 function prepareDataRoot(): string {
   const dataRoot = app.getPath('userData')
-  for (const dir of ['profiles', 'logs', 'kernels', 'geoip']) {
+  for (const dir of ['profiles', 'logs', 'kernels', 'geoip', 'extensions']) {
     mkdirSync(join(dataRoot, dir), { recursive: true })
   }
   return dataRoot
@@ -111,8 +113,12 @@ if (!app.requestSingleInstanceLock()) {
       const kernels = new KernelService(paths.kernels(dataRoot))
       const geo = new GeoService(paths.geoip(dataRoot))
       const proxies = new ProxyService(db, createSafeStorageBox(), geo)
-      launcher = new LaunchService(db, dataRoot, profiles, kernels, proxies)
-      registerIpc({ profiles, proxies, geo, launcher, kernels, target: () => mainWindow?.webContents ?? null })
+      const extensions = new ExtensionService(db, paths.extensions(dataRoot), {
+        prodVersion: findSupportedKernel(DEFAULT_KERNEL_ID)!.buildId
+      })
+      extensions.cleanup()
+      launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions })
+      registerIpc({ profiles, proxies, geo, extensions, launcher, kernels, window: () => mainWindow })
     } catch (err) {
       dialog.showErrorBox('Isola không khởi động được', String(err))
       app.exit(1)

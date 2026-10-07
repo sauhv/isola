@@ -30,7 +30,8 @@ describe('db', () => {
       .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
       .all()
       .map((r: any) => r.name)
-    expect(tables).toEqual([
+    // Bảng của SPEC-003 phải có; migration sau được thêm bảng mới.
+    expect(tables).toEqual(expect.arrayContaining([
       'audit_log',
       'cookies_import',
       'fingerprints',
@@ -40,7 +41,7 @@ describe('db', () => {
       'proxies',
       'settings',
       'tags'
-    ])
+    ]))
     db.close()
   })
 

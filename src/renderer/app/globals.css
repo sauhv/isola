@@ -351,3 +351,44 @@ td.wrap {
   white-space: normal;
   max-width: 320px;
 }
+
+.ext-cell {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ext-cell img,
+.ext-icon-ph {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.ext-icon-ph {
+  background: var(--border);
+}
+
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+button.link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline dotted;
+}
+
+.pick-list {
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-left: 24px;
+}

@@ -49,6 +49,16 @@ const api: IsolaApi = {
     status: () => invoke(Channels.geoStatus),
     install: () => invoke(Channels.geoInstall)
   },
+  extensions: {
+    list: () => invoke(Channels.extensionsList),
+    addFromStore: (urlOrId) => invoke(Channels.extensionsAddFromStore, urlOrId),
+    addFromFile: (kind) => invoke(Channels.extensionsAddFromFile, kind),
+    updateFromFile: (id, kind) => invoke(Channels.extensionsUpdateFromFile, id, kind),
+    update: (id, patch) => invoke(Channels.extensionsUpdate, id, patch),
+    remove: (id) => invoke(Channels.extensionsRemove, id),
+    checkUpdates: () => invoke(Channels.extensionsCheckUpdates),
+    updateFromStore: (id) => invoke(Channels.extensionsUpdateFromStore, id)
+  },
   onProfileStatus: (cb) => subscribe(Channels.evtProfileStatus, cb),
   onKernelProgress: (cb) => subscribe(Channels.evtKernelProgress, cb),
   onGeoProgress: (cb) => subscribe(Channels.evtGeoProgress, cb)

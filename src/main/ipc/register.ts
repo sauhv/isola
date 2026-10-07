@@ -1,8 +1,9 @@
-import { ipcMain, type WebContents } from 'electron'
+import { dialog, ipcMain, type BrowserWindow, type OpenDialogOptions } from 'electron'
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
 import { IsolaError } from '../errors'
 import type { KernelService } from '../services/kernelService'
+import type { ExtensionService } from '../services/extensionService'
 import type { GeoService } from '../services/geoService'
 import type { LaunchService } from '../services/launchService'
 import type { ProfileService } from '../services/profileService'
@@ -57,14 +58,40 @@ const proxyFields = {
 const proxyInput = z.object(proxyFields).strict()
 const proxyPatch = z.object(proxyFields).partial().strict()
 
+const extId = z.string().regex(/^[a-p]{32}$/, 'ID extension không hợp lệ')
+const pickKind = z.enum(['file', 'folder'])
+const extensionPatch = z
+  .object({
+    enabled: z.boolean().optional(),
+    scope: z.enum(['all', 'groups', 'profiles']).optional(),
+    groupIds: z.array(id).max(1000).optional(),
+    profileIds: z.array(id).max(10_000).optional()
+  })
+  .strict()
+
 export interface Services {
   profiles: ProfileService
   proxies: ProxyService
   geo: GeoService
+  extensions: ExtensionService
   launcher: LaunchService
   kernels: KernelService
-  /** Cửa sổ nhận event main → renderer. */
-  target: () => WebContents | null
+  /** Cửa sổ chính: nhận event main → renderer, làm cha cho hộp thoại. */
+  window: () => BrowserWindow | null
+}
+
+/** Hộp thoại chọn .crx/.zip hoặc thư mục extension. null nếu người dùng hủy. */
+async function pickExtensionPath(win: BrowserWindow | null, kind: 'file' | 'folder'): Promise<string | null> {
+  const options: OpenDialogOptions =
+    kind === 'file'
+      ? {
+          title: 'Chọn file extension',
+          properties: ['openFile'],
+          filters: [{ name: 'Chrome extension (.crx, .zip)', extensions: ['crx', 'zip'] }]
+        }
+      : { title: 'Chọn thư mục extension (có manifest.json)', properties: ['openDirectory'] }
+  const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+  return r.canceled || r.filePaths.length === 0 ? null : r.filePaths[0]
 }
 
 /** Bọc handler: validate input bằng zod, đổi mọi lỗi thành `{ ok: false, error }`. */
@@ -111,7 +138,7 @@ export function registerIpc(s: Services): void {
   handle(Channels.kernelsList, [], () => s.kernels.list())
   handle(Channels.kernelsInstall, [z.string()], (kid) =>
     s.kernels.install(kid, (downloadedBytes, totalBytes) =>
-      s.target()?.send(Channels.evtKernelProgress, { id: kid, downloadedBytes, totalBytes })
+      s.window()?.webContents.send(Channels.evtKernelProgress, { id: kid, downloadedBytes, totalBytes })
     )
   )
 
@@ -127,9 +154,24 @@ export function registerIpc(s: Services): void {
   handle(Channels.geoStatus, [], () => s.geo.status())
   handle(Channels.geoInstall, [], () =>
     s.geo.install((downloadedBytes, totalBytes) =>
-      s.target()?.send(Channels.evtGeoProgress, { downloadedBytes, totalBytes })
+      s.window()?.webContents.send(Channels.evtGeoProgress, { downloadedBytes, totalBytes })
     )
   )
 
-  s.launcher.on('status', (e) => s.target()?.send(Channels.evtProfileStatus, e))
+  handle(Channels.extensionsList, [], () => s.extensions.list())
+  handle(Channels.extensionsAddFromStore, [z.string().trim().min(1).max(500)], (input) => s.extensions.addFromStore(input))
+  handle(Channels.extensionsAddFromFile, [pickKind], async (kind) => {
+    const path = await pickExtensionPath(s.window(), kind)
+    return path ? s.extensions.addFromPath(path) : null
+  })
+  handle(Channels.extensionsUpdateFromFile, [extId, pickKind], async (eid, kind) => {
+    const path = await pickExtensionPath(s.window(), kind)
+    return path ? s.extensions.updateFromPath(eid, path) : null
+  })
+  handle(Channels.extensionsUpdate, [extId, extensionPatch], (eid, patch) => s.extensions.update(eid, patch))
+  handle(Channels.extensionsRemove, [extId], (eid) => (s.extensions.remove(eid), null))
+  handle(Channels.extensionsCheckUpdates, [], () => s.extensions.checkUpdates())
+  handle(Channels.extensionsUpdateFromStore, [extId], (eid) => s.extensions.updateFromStore(eid))
+
+  s.launcher.on('status', (e) => s.window()?.webContents.send(Channels.evtProfileStatus, e))
 }

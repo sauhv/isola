@@ -195,6 +195,7 @@ export class ProfileService {
     this.db.transaction(() => {
       this.db.prepare('DELETE FROM profile_tags WHERE profile_id = ?').run(id)
       this.db.prepare('DELETE FROM cookies_import WHERE profile_id = ?').run(id)
+      this.db.prepare("DELETE FROM extension_targets WHERE kind = 'profile' AND target_id = ?").run(id)
       this.db.prepare('DELETE FROM profiles WHERE id = ?').run(id)
       this.db.prepare('DELETE FROM fingerprints WHERE id = ?').run(fingerprint_id)
       audit(this.db, 'purge', id, { serial: p.serial })
@@ -253,6 +254,7 @@ export class ProfileService {
     this.requireGroup(id)
     this.db.transaction(() => {
       this.db.prepare('UPDATE profiles SET group_id = NULL WHERE group_id = ?').run(id)
+      this.db.prepare("DELETE FROM extension_targets WHERE kind = 'group' AND target_id = ?").run(id)
       this.db.prepare('DELETE FROM groups WHERE id = ?').run(id)
     })()
   }
