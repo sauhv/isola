@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Cpu, Globe, LayoutList, Plus, Puzzle } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import ToastHost from './components/ToastHost'
 import { call, isola } from './lib/isola'
 import ExtensionsPage from './views/ExtensionsPage'
 import KernelsPage from './views/KernelsPage'
@@ -99,6 +100,7 @@ export default function App() {
         {page === 'extensions' && <ExtensionsPage />}
         {page === 'kernels' && <KernelsPage />}
       </main>
+      <ToastHost />
     </div>
   )
 }

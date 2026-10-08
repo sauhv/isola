@@ -79,6 +79,8 @@ function registerRendererProtocol(): void {
     const res = await net.fetch(pathToFileURL(file).toString())
     const headers = new Headers(res.headers)
     headers.set('Content-Security-Policy', CSP)
+    // Phục vụ tài nguyên app:// luôn tươi, tránh Chromium cache JS/HTML cũ giữa các bản build.
+    headers.set('Cache-Control', 'no-store')
     return new Response(res.body, { status: res.status, headers })
   })
 }

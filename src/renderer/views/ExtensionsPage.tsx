@@ -1,16 +1,23 @@
 'use client'
 
+import { CheckCircle2, FilePlus, FolderPlus, Hammer, LayoutGrid, MoreVertical, RefreshCw, Search, Store, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Extension, Group, Profile } from '../../shared/types'
+import Menu from '../components/Menu'
 import { call, isola } from '../lib/isola'
+import { notYet } from '../lib/toast'
 import ExtensionScopeDialog from './ExtensionScopeDialog'
 
+type SubTab = 'team' | 'recommended'
+
 export default function ExtensionsPage() {
+  const [subtab, setSubtab] = useState<SubTab>('team')
   const [extensions, setExtensions] = useState<Extension[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [updates, setUpdates] = useState<Record<string, string>>({})
   const [storeInput, setStoreInput] = useState('')
+  const [search, setSearch] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -35,7 +42,6 @@ export default function ExtensionsPage() {
     reload()
   }, [reload])
 
-  /** Chạy một thao tác, hiện lỗi hoặc thông báo, rồi tải lại danh sách. */
   async function run(key: string, fn: () => Promise<string | null | void>) {
     setBusy(key)
     setError(null)
@@ -80,10 +86,14 @@ export default function ExtensionsPage() {
     if (e.scope === 'all') return 'Tất cả profile'
     if (e.scope === 'groups') {
       const names = e.groupIds.map((id) => groups.find((g) => g.id === id)?.name).filter(Boolean)
-      return names.length ? `Nhóm: ${names.join(', ')}` : 'Chưa chọn nhóm nào'
+      return names.length ? `Nhóm: ${names.join(', ')}` : 'Chưa chọn nhóm'
     }
-    return e.profileIds.length ? `${e.profileIds.length} profile` : 'Chưa chọn profile nào'
+    return e.profileIds.length ? `${e.profileIds.length} profile` : 'Chưa chọn profile'
   }
+
+  const shown = extensions.filter(
+    (e) => !search.trim() || e.name.toLowerCase().includes(search.trim().toLowerCase())
+  )
 
   return (
     <>
@@ -91,148 +101,165 @@ export default function ExtensionsPage() {
         <h1 className="page-title">Extension</h1>
       </div>
       <div className="panel pad">
-
-      <form className="toolbar" onSubmit={addFromStore}>
-        <input
-          style={{ flex: 1, minWidth: 280 }}
-          value={storeInput}
-          onChange={(e) => setStoreInput(e.target.value)}
-          placeholder="Dán link Chrome Web Store hoặc ID extension"
-        />
-        <button type="submit" className="primary" disabled={!!busy || !storeInput.trim()}>
-          {busy === 'store' ? 'Đang tải…' : 'Thêm từ Web Store'}
-        </button>
-        <button type="button" disabled={!!busy} onClick={() => addFromFile('file')}>
-          Từ file .crx/.zip
-        </button>
-        <button type="button" disabled={!!busy} onClick={() => addFromFile('folder')}>
-          Từ thư mục
-        </button>
-        <button type="button" disabled={!!busy} onClick={checkUpdates}>
-          {busy === 'check' ? 'Đang kiểm…' : 'Kiểm tra cập nhật'}
-        </button>
-      </form>
-
-      <p className="note" style={{ margin: '0 0 12px' }}>
-        Thay đổi có hiệu lực từ lần mở profile tiếp theo. Dữ liệu của extension (ví, đăng nhập…) lưu riêng trong từng
-        profile và được giữ khi cập nhật. Trang web có thể phát hiện một số extension, nên chỉ gán extension cho profile
-        thật sự cần.
-      </p>
-
-      {error && (
-        <div className="error-bar">
-          <span>{error}</span>
-          <button className="small" onClick={() => setError(null)}>
-            Đóng
+        <div className="subtabs">
+          <button className={`subtab${subtab === 'team' ? ' active' : ''}`} onClick={() => setSubtab('team')}>
+            Của tôi
+          </button>
+          <button className={`subtab${subtab === 'recommended' ? ' active' : ''}`} onClick={() => setSubtab('recommended')}>
+            Gợi ý
           </button>
         </div>
-      )}
-      {notice && <div className="ok-bar" style={{ marginBottom: 12 }}>{notice}</div>}
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Extension</th>
-              <th>Quyền</th>
-              <th>Áp dụng cho</th>
-              <th>Bật</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {extensions.map((e) => {
-              const isBusy = busy === e.id
-              const newVersion = updates[e.id]
-              return (
-                <tr key={e.id}>
-                  <td className="wrap">
-                    <div className="ext-cell">
-                      {e.icon ? <img src={e.icon} alt="" width={28} height={28} /> : <div className="ext-icon-ph" />}
-                      <div>
-                        <div>
-                          {e.name} <span className="muted">{e.version}</span>{' '}
-                          <span className="tag">{e.source === 'store' ? 'Web Store' : 'File'}</span>
-                          {newVersion && <span className="tag warn">có bản {newVersion}</span>}
+        {subtab === 'recommended' && (
+          <div className="coming-soon">
+            <Hammer size={40} />
+            <h4>Extension gợi ý</h4>
+            <p>Danh mục extension được tuyển chọn. Tính năng chưa phát triển.</p>
+          </div>
+        )}
+
+        {subtab === 'team' && (
+          <>
+            <form className="toolbar" onSubmit={addFromStore}>
+              <button type="button" className="primary" disabled={!!busy} onClick={() => addFromFile('file')}>
+                <Upload size={15} /> Thêm extension
+              </button>
+              <div className="search" style={{ width: 240 }}>
+                <Search size={16} />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm extension" />
+              </div>
+              <input
+                style={{ flex: 1, minWidth: 220 }}
+                value={storeInput}
+                onChange={(e) => setStoreInput(e.target.value)}
+                placeholder="Dán link Chrome Web Store hoặc ID extension"
+              />
+              <button type="submit" className="primary" disabled={!!busy || !storeInput.trim()}>
+                <Store size={15} /> {busy === 'store' ? 'Đang tải…' : 'Từ Web Store'}
+              </button>
+              <button type="button" disabled={!!busy} onClick={() => addFromFile('folder')}>
+                <FolderPlus size={15} /> Từ thư mục
+              </button>
+              <button type="button" disabled={!!busy} onClick={checkUpdates}>
+                <RefreshCw size={15} className={busy === 'check' ? 'spin' : undefined} /> Kiểm tra cập nhật
+              </button>
+              <div className="spacer" />
+              <button type="button" className="icon" title="Phân loại" onClick={() => notYet('Phân loại extension')}>
+                <LayoutGrid size={15} />
+              </button>
+            </form>
+
+            <p className="note" style={{ margin: '0 0 14px' }}>
+              Thay đổi có hiệu lực từ lần mở profile tiếp theo. Dữ liệu extension (ví, đăng nhập…) lưu riêng trong từng
+              profile và được giữ khi cập nhật. Trang web có thể phát hiện một số extension, nên chỉ gán cho profile thật
+              sự cần.
+            </p>
+
+            {error && (
+              <div className="error-bar">
+                <span>{error}</span>
+                <button className="small ghost" onClick={() => setError(null)}>
+                  Đóng
+                </button>
+              </div>
+            )}
+            {notice && (
+              <div className="ok-bar" style={{ marginBottom: 14 }}>
+                {notice}
+              </div>
+            )}
+
+            {shown.length === 0 ? (
+              <div className="empty">
+                {extensions.length === 0
+                  ? 'Chưa có extension. Dán link Chrome Web Store, hoặc thêm từ file / thư mục.'
+                  : 'Không có extension khớp tìm kiếm.'}
+              </div>
+            ) : (
+              <div className="ext-grid">
+                {shown.map((e) => {
+                  const isBusy = busy === e.id
+                  const newVersion = updates[e.id]
+                  return (
+                    <div className="ext-card" key={e.id}>
+                      <div className="ext-card-head">
+                        {e.icon ? <img src={e.icon} alt="" /> : <div className="ext-icon-ph" />}
+                        <div className="ext-card-title">
+                          <div className="name">
+                            {e.name}
+                            <span className="muted small-text">{e.version}</span>
+                            <span className="tag">{e.source === 'store' ? 'Web Store' : 'File'}</span>
+                            {newVersion && <span className="tag warn">có bản {newVersion}</span>}
+                          </div>
+                          <div className="muted small-text">Áp dụng: {scopeText(e)}</div>
                         </div>
-                        {e.description && <div className="muted small-text">{e.description}</div>}
-                        <div className="muted small-text mono">{e.id}</div>
+                        <button
+                          className={`switch${e.enabled ? ' on' : ''}`}
+                          disabled={isBusy}
+                          title={e.enabled ? 'Đang bật' : 'Đang tắt'}
+                          onClick={() => run(e.id, async () => void (await call(isola().extensions.update(e.id, { enabled: !e.enabled }))))}
+                        />
+                      </div>
+                      {e.description && <div className="ext-card-desc">{e.description}</div>}
+                      <div className="ext-card-foot">
+                        <span className="badge-available">
+                          <CheckCircle2 size={13} /> Sẵn sàng
+                        </span>
+                        <span className="spacer" />
+                        <button className="small" onClick={() => setScopeOf(e)}>
+                          Phạm vi
+                        </button>
+                        <Menu
+                          trigger={(toggle) => (
+                            <button className="icon small ghost" onClick={toggle} title="Thêm">
+                              <MoreVertical size={16} />
+                            </button>
+                          )}
+                          items={[
+                            {
+                              label: 'Phạm vi áp dụng',
+                              onClick: () => setScopeOf(e)
+                            },
+                            e.source === 'store'
+                              ? {
+                                  label: 'Cập nhật từ Web Store',
+                                  icon: <RefreshCw size={14} />,
+                                  onClick: () =>
+                                    run(e.id, async () => {
+                                      const u = await call(isola().extensions.updateFromStore(e.id))
+                                      setUpdates(({ [e.id]: _, ...rest }) => rest)
+                                      return u.version === e.version
+                                        ? `${u.name} đã là bản mới nhất.`
+                                        : `Đã cập nhật ${u.name} lên ${u.version}.`
+                                    })
+                                }
+                              : {
+                                  label: 'Cập nhật từ file',
+                                  icon: <FilePlus size={14} />,
+                                  onClick: () =>
+                                    run(e.id, async () => {
+                                      const u = await call(isola().extensions.updateFromFile(e.id, 'file'))
+                                      return u ? `Đã cập nhật ${u.name} lên ${u.version}.` : null
+                                    })
+                                },
+                            'divider',
+                            {
+                              label: 'Xóa khỏi Isola',
+                              danger: true,
+                              onClick: () => {
+                                if (!confirm(`Xóa extension "${e.name}" khỏi Isola? Dữ liệu của nó trong các profile vẫn được giữ.`)) return
+                                run(e.id, async () => void (await call(isola().extensions.remove(e.id))))
+                              }
+                            }
+                          ]}
+                        />
                       </div>
                     </div>
-                  </td>
-                  <td className="wrap small-text" title={e.permissions.join('\n')}>
-                    {e.permissions.length === 0 ? (
-                      <span className="muted">Không</span>
-                    ) : (
-                      <>
-                        {e.permissions.slice(0, 3).join(', ')}
-                        {e.permissions.length > 3 && <span className="muted"> +{e.permissions.length - 3}</span>}
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    <button className="link" onClick={() => setScopeOf(e)}>
-                      {scopeText(e)}
-                    </button>
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={e.enabled}
-                      disabled={isBusy}
-                      onChange={(ev) =>
-                        run(e.id, async () => void (await call(isola().extensions.update(e.id, { enabled: ev.target.checked }))))
-                      }
-                    />
-                  </td>
-                  <td className="actions">
-                    {e.source === 'store' ? (
-                      <button
-                        className={`small${newVersion ? ' primary' : ''}`}
-                        disabled={!!busy}
-                        onClick={() =>
-                          run(e.id, async () => {
-                            const u = await call(isola().extensions.updateFromStore(e.id))
-                            setUpdates(({ [e.id]: _, ...rest }) => rest)
-                            return u.version === e.version ? `${u.name} đã là bản mới nhất.` : `Đã cập nhật ${u.name} lên ${u.version}.`
-                          })
-                        }
-                      >
-                        {isBusy ? '…' : 'Cập nhật'}
-                      </button>
-                    ) : (
-                      <button
-                        className="small"
-                        disabled={!!busy}
-                        title="Chọn file .crx/.zip bản mới. ID extension được giữ nguyên."
-                        onClick={() =>
-                          run(e.id, async () => {
-                            const u = await call(isola().extensions.updateFromFile(e.id, 'file'))
-                            return u ? `Đã cập nhật ${u.name} lên ${u.version}.` : null
-                          })
-                        }
-                      >
-                        Cập nhật từ file
-                      </button>
-                    )}
-                    <button
-                      className="small danger"
-                      disabled={!!busy}
-                      onClick={() => {
-                        if (!confirm(`Xóa extension "${e.name}" khỏi Isola? Dữ liệu của nó trong các profile vẫn được giữ.`)) return
-                        run(e.id, async () => void (await call(isola().extensions.remove(e.id))))
-                      }}
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {extensions.length === 0 && (
-          <div className="empty">Chưa có extension. Dán link Chrome Web Store ở trên, hoặc thêm từ file.</div>
+                  )
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -248,7 +275,6 @@ export default function ExtensionsPage() {
           }}
         />
       )}
-      </div>
     </>
   )
 }

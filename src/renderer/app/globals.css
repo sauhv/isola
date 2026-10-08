@@ -1028,3 +1028,263 @@ td.actions {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ---------- toast ---------- */
+
+.toast-host {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 36px));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #2a2c31;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  animation: toast-in 0.18s ease;
+}
+
+.toast.success {
+  border-left-color: var(--ok);
+}
+.toast.success svg {
+  color: var(--ok);
+}
+.toast.error {
+  border-left-color: var(--danger);
+}
+.toast.error svg {
+  color: var(--danger);
+}
+.toast.info svg {
+  color: var(--accent);
+}
+
+.toast span {
+  flex: 1;
+}
+
+.toast-close {
+  border: none;
+  background: none;
+  height: auto;
+  padding: 2px;
+  color: var(--muted);
+}
+.toast-close:hover {
+  background: none;
+  color: var(--text);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- sub-tabs (List / Rotating Proxy …, Team / Recommended) ---------- */
+
+.subtabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 -16px 14px;
+  padding: 0 16px;
+}
+
+.subtab {
+  all: unset;
+  cursor: pointer;
+  padding: 12px 0 10px;
+  font-size: 15px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.subtab:hover {
+  color: var(--text);
+}
+.subtab.active {
+  color: #fff;
+  font-weight: 600;
+  border-bottom-color: #fff;
+}
+
+/* ---------- category chips (All / Static ISP / Imported …) ---------- */
+
+.chipbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.chip-tab {
+  all: unset;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: var(--input);
+  border: 1px solid var(--border);
+}
+.chip-tab:hover {
+  color: var(--text);
+}
+.chip-tab.active {
+  background: var(--accent-soft);
+  border-color: rgba(61, 109, 251, 0.45);
+  color: #9db6ff;
+}
+
+/* ---------- "chưa phát triển" placeholder panel ---------- */
+
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 72px 24px;
+  color: var(--muted);
+  text-align: center;
+}
+.coming-soon svg {
+  color: var(--faint);
+}
+.coming-soon h4 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+/* ---------- profile form: tab anchors ---------- */
+
+.form-tabs {
+  display: flex;
+  gap: 26px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.form-tabs .tab {
+  padding: 12px 0 10px;
+  font-size: 15px;
+}
+
+.ext-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.ext-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ext-card-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.ext-card-head img,
+.ext-card-head .ext-icon-ph {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+.ext-card-title {
+  flex: 1;
+  min-width: 0;
+}
+.ext-card-title .name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ext-card-desc {
+  font-size: 12.5px;
+  color: var(--muted);
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ext-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.badge-available {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ok);
+  font-size: 12px;
+}
+
+/* công tắc bật/tắt dạng switch */
+.switch {
+  position: relative;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-strong);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.switch.on {
+  background: var(--accent);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.switch.on::after {
+  transform: translateX(18px);
+}
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}

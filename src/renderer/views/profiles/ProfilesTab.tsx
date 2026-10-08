@@ -17,7 +17,9 @@ import {
   RefreshCw,
   Search,
   Square,
-  Trash2
+  Share2,
+  Trash2,
+  Upload
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Group, Profile, Tag } from '../../../shared/types'
@@ -25,6 +27,7 @@ import Menu from '../../components/Menu'
 import { runBatch } from '../../lib/batch'
 import { colorFor, countryName, dateTimeParts } from '../../lib/format'
 import { call, isola } from '../../lib/isola'
+import { notYet } from '../../lib/toast'
 import MoveGroupDialog from './MoveGroupDialog'
 
 type SortKey = 'serial' | 'lastOpened'
@@ -225,6 +228,12 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         </button>
         <button disabled={bulkBusy || selected.size === 0} onClick={() => setMoving(selectedProfiles)}>
           <FolderInput size={15} /> Chuyển nhóm
+        </button>
+        <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet('Xuất profile')}>
+          <Upload size={15} /> Export
+        </button>
+        <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet('Chia sẻ profile')}>
+          <Share2 size={15} /> Chia sẻ
         </button>
         <button
           className="icon"
