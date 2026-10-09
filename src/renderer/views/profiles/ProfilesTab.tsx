@@ -6,7 +6,9 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  Boxes,
   Copy,
+  CopyPlus,
   FolderInput,
   Loader2,
   MapPin,
@@ -28,6 +30,7 @@ import { runBatch } from '../../lib/batch'
 import { colorFor, countryName, dateTimeParts } from '../../lib/format'
 import { call, isola } from '../../lib/isola'
 import { notYet } from '../../lib/toast'
+import BulkCreateDialog from './BulkCreateDialog'
 import MoveGroupDialog from './MoveGroupDialog'
 
 type SortKey = 'serial' | 'lastOpened'
@@ -56,6 +59,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [moving, setMoving] = useState<Profile[] | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const reload = useCallback(async () => {
     try {
@@ -253,6 +257,9 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         )}
         {bulkBusy && <Loader2 size={16} className="spin muted" />}
         <div className="spacer" />
+        <button onClick={() => setBulkOpen(true)}>
+          <Boxes size={15} /> Tạo hàng loạt
+        </button>
         <button className="primary" onClick={onCreate}>
           <Plus size={15} /> Tạo profile
         </button>
@@ -408,6 +415,11 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                         )}
                         items={[
                           { label: 'Sửa', icon: <Pencil size={14} />, onClick: () => onEdit(p) },
+                          {
+                            label: 'Nhân bản',
+                            icon: <CopyPlus size={14} />,
+                            onClick: () => single(p.id, () => call(isola().profiles.clone(p.id)).then(reload))
+                          },
                           { label: 'Chuyển nhóm', icon: <FolderInput size={14} />, onClick: () => setMoving([p]) },
                           {
                             label: 'Sao chép ID',
@@ -471,6 +483,17 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
           onDone={(err) => {
             setMoving(null)
             if (err) setError(err)
+            reload()
+          }}
+        />
+      )}
+      {bulkOpen && (
+        <BulkCreateDialog
+          groups={groups}
+          onClose={() => setBulkOpen(false)}
+          onDone={(msg) => {
+            setBulkOpen(false)
+            if (msg) setError(msg)
             reload()
           }}
         />

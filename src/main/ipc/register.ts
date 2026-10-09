@@ -90,6 +90,21 @@ const extensionPatch = z
   })
   .strict()
 
+
+const bulkCreateInput = z
+  .object({
+    count: z.number().int().min(1).max(500),
+    namePattern: z.string().trim().min(1).max(100),
+    startIndex: z.number().int().min(0).max(1_000_000).optional(),
+    groupId: id.nullable().optional(),
+    platform: z.string().trim().max(50).nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+    startUrls: z.array(httpUrl).max(20).optional(),
+    lab: z.boolean().optional(),
+    proxyIds: z.array(id).max(500).optional()
+  })
+  .strict()
+
 export interface Services {
   profiles: ProfileService
   proxies: ProxyService
@@ -165,6 +180,8 @@ export function registerIpc(s: Services): void {
     return updated
   })
   handle(Channels.profilesSetFingerprint, [id, fingerprintInput], (pid, fp) => s.profiles.setFingerprint(pid, fp as never))
+  handle(Channels.profilesClone, [id], (pid) => s.profiles.clone(pid))
+  handle(Channels.profilesCreateMany, [bulkCreateInput], (input) => s.profiles.createMany(input))
   handle(Channels.fingerprintsCatalog, [], () =>
     compatibleEntries(s.profiles.host).map((e) => ({ id: e.id, label: e.label, os: e.os, gpuVendor: e.gpuVendor }))
   )

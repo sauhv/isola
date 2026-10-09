@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -92,5 +93,78 @@ describe('profileService', () => {
     svc.setStatus(a.id, 'running')
     expect(svc.resetStaleRunning()).toBe(1)
     expect(svc.get(a.id).status).toBe('idle')
+  })
+})
+
+describe('profileService nhân bản & tạo hàng loạt (Phase 5)', () => {
+  const addProxy = (label: string) => {
+    const pid = randomUUID()
+    db.prepare('INSERT INTO proxies (id, label, type, host, port, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+      pid,
+      label,
+      'http',
+      'h.example',
+      80,
+      'now'
+    )
+    return pid
+  }
+
+  it('clone: chép thông tin, tên "(bản sao)" duy nhất, seed mới, không chép cookie', () => {
+    const g = svc.createGroup('G')
+    const src = svc.create({
+      name: 'Gốc',
+      groupId: g.id,
+      platform: 'facebook',
+      tags: ['a', 'b'],
+      startUrls: ['https://x.com'],
+      notes: 'ghi chú',
+      lab: true
+    })
+    const c1 = svc.clone(src.id)
+    expect(c1.name).toBe('Gốc (bản sao)')
+    expect(c1.id).not.toBe(src.id)
+    expect(c1.serial).toBeGreaterThan(src.serial)
+    expect(c1.groupId).toBe(g.id)
+    expect(c1.platform).toBe('facebook')
+    expect(c1.tags.map((t) => t.name).sort()).toEqual(['a', 'b'])
+    expect(c1.startUrls).toEqual(['https://x.com'])
+    expect(c1.lab).toBe(true)
+    expect(c1.fingerprint).not.toBeNull()
+
+    const fpOf = (id: string) => (db.prepare('SELECT fingerprint_id FROM profiles WHERE id = ?').get(id) as any).fingerprint_id
+    expect(fpOf(c1.id)).not.toBe(fpOf(src.id))
+    // không chép cookie import
+    expect(db.prepare('SELECT COUNT(*) AS n FROM cookies_import').get()).toEqual({ n: 0 })
+
+    const c2 = svc.clone(src.id)
+    expect(c2.name).toBe('Gốc (bản sao) 2')
+  })
+
+  it('createMany: mẫu {n}, gán proxy xoay vòng, đếm đúng', () => {
+    const p1 = addProxy('p1')
+    const p2 = addProxy('p2')
+    const g = svc.createGroup('Shop')
+    const r = svc.createMany({ count: 5, namePattern: 'Shop {n}', groupId: g.id, platform: 'tiktok', proxyIds: [p1, p2], lab: true })
+    expect(r.created).toBe(5)
+    expect(r.errors).toEqual([])
+
+    const list = svc.list().filter((p) => p.name.startsWith('Shop '))
+    expect(list.map((p) => p.name).sort()).toEqual(['Shop 1', 'Shop 2', 'Shop 3', 'Shop 4', 'Shop 5'])
+    const byName = Object.fromEntries(list.map((p) => [p.name, p.proxyId]))
+    expect(byName['Shop 1']).toBe(p1)
+    expect(byName['Shop 2']).toBe(p2)
+    expect(byName['Shop 3']).toBe(p1)
+    expect(list.every((p) => p.lab && p.platform === 'tiktok' && p.groupId === g.id)).toBe(true)
+  })
+
+  it('createMany: không có {n} thì nối số và tránh trùng tên', () => {
+    svc.create({ name: 'Acc 1' })
+    const r = svc.createMany({ count: 3, namePattern: 'Acc' })
+    expect(r.created).toBe(3)
+    const names = svc.list().map((p) => p.name).filter((n) => n.startsWith('Acc'))
+    expect(names).toContain('Acc 2')
+    expect(names).toContain('Acc 3')
+    expect(new Set(names).size).toBe(names.length)
   })
 })

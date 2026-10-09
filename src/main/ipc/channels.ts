@@ -9,6 +9,8 @@ export const Channels = {
   profilesStart: 'profiles:start',
   profilesStop: 'profiles:stop',
   profilesSetFingerprint: 'profiles:set-fingerprint',
+  profilesClone: 'profiles:clone',
+  profilesCreateMany: 'profiles:create-many',
   fingerprintsCatalog: 'fingerprints:catalog',
   fingerprintsPreview: 'fingerprints:preview',
   proxiesTestDraft: 'proxies:test-draft',

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { rmSync } from 'node:fs'
 import type {
+  BulkCreateInput,
+  BulkCreateResult,
   Group,
   Profile,
   ProfileFilter,
@@ -162,6 +164,63 @@ export class ProfileService {
       throw err
     }
     return this.get(id)
+  }
+
+  /** Nhân bản: chép thông tin, sinh seed mới, KHÔNG chép cookie hay user-data. */
+  clone(id: string): Profile {
+    const src = this.get(id)
+    if (src.deletedAt) throw new IsolaError('ARCHIVED')
+    return this.create({
+      name: this.uniqueName(`${src.name} (bản sao)`),
+      groupId: src.groupId,
+      proxyId: src.proxyId,
+      tags: src.tags.map((t) => t.name),
+      startUrls: src.startUrls,
+      username: src.username,
+      notes: src.notes,
+      platform: src.platform,
+      lab: src.lab,
+      kernel: src.kernel
+    })
+  }
+
+  /** Tạo nhiều profile theo mẫu tên, gán proxy xoay vòng. Best-effort: lỗi dòng nào trả về dòng đó. */
+  createMany(input: BulkCreateInput): BulkCreateResult {
+    const start = input.startIndex ?? 1
+    const proxyIds = input.proxyIds ?? []
+    const errors: BulkCreateResult['errors'] = []
+    let created = 0
+    for (let i = 0; i < input.count; i++) {
+      const n = start + i
+      const base = (input.namePattern.includes('{n}') ? input.namePattern.split('{n}').join(String(n)) : `${input.namePattern} ${n}`).trim()
+      const name = this.uniqueName(base || `Profile ${n}`)
+      try {
+        this.create({
+          name,
+          groupId: input.groupId ?? null,
+          proxyId: proxyIds.length ? proxyIds[i % proxyIds.length] : null,
+          platform: input.platform ?? null,
+          tags: input.tags,
+          startUrls: input.startUrls,
+          lab: input.lab
+        })
+        created++
+      } catch (err) {
+        errors.push({ index: n, name, reason: err instanceof IsolaError ? err.code : String(err) })
+      }
+    }
+    return { created, errors }
+  }
+
+  /** Tên profile là UNIQUE; thêm hậu tố số cho tới khi chưa trùng. */
+  private uniqueName(base: string): string {
+    const exists = (name: string) => !!this.db.prepare('SELECT 1 FROM profiles WHERE name = ?').get(name)
+    if (!exists(base)) return base
+    for (let i = 2; i < 100000; i++) {
+      const candidate = `${base} ${i}`
+      if (!exists(candidate)) return candidate
+    }
+    return `${base} ${randomUUID().slice(0, 8)}`
   }
 
   update(id: string, patch: ProfilePatch): Profile {

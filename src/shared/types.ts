@@ -118,6 +118,26 @@ export interface ProfileInput {
 
 export type ProfilePatch = Partial<Omit<ProfileInput, 'kernel' | 'fingerprint'>>
 
+/** Tạo nhiều profile cùng lúc theo mẫu tên và gán proxy xoay vòng. */
+export interface BulkCreateInput {
+  count: number
+  /** Mẫu tên, {n} được thay bằng số thứ tự; không có {n} thì nối số vào cuối. */
+  namePattern: string
+  startIndex?: number
+  groupId?: string | null
+  platform?: string | null
+  tags?: string[]
+  startUrls?: string[]
+  lab?: boolean
+  /** Danh sách proxy gán xoay vòng (1:1 nếu đủ số lượng). Rỗng = không proxy. */
+  proxyIds?: string[]
+}
+
+export interface BulkCreateResult {
+  created: number
+  errors: { index: number; name: string; reason: string }[]
+}
+
 export interface KernelInfo {
   id: string
   major: number
@@ -240,6 +260,10 @@ export interface IsolaApi {
     stop(id: string): Promise<Result<null>>
     /** Đổi fingerprint có chủ đích (audit seed_rotate). */
     setFingerprint(id: string, fp: ProfileFingerprint): Promise<Result<Profile>>
+    /** Nhân bản profile: seed mới, không chép cookie/user-data. */
+    clone(id: string): Promise<Result<Profile>>
+    /** Tạo nhiều profile theo mẫu. */
+    createMany(input: BulkCreateInput): Promise<Result<BulkCreateResult>>
   }
   fingerprints: {
     catalog(): Promise<Result<CatalogOption[]>>
