@@ -56,6 +56,12 @@ export class FingerprintController {
     while (this.pending.size) await Promise.all([...this.pending])
   }
 
+  /** sessionId của tab mang targetId này (để điều hướng đúng tab sau khi mở about:blank). */
+  sessionForTarget(targetId: string): string | undefined {
+    for (const [sid, tid] of this.pages) if (tid === targetId) return sid
+    return undefined
+  }
+
   private track(p: Promise<void>): void {
     this.pending.add(p)
     p.finally(() => this.pending.delete(p))

@@ -190,7 +190,14 @@ export class LaunchService extends EventEmitter {
         }
         if (profile.startUrls.length) {
           const blankTabs = [...controller.pages.values()]
-          for (const url of profile.startUrls) await cdp.send('Target.createTarget', { url })
+          // Mở about:blank trước để kịp đăng ký script doc-start + override khi tab đang dừng,
+          // rồi mới điều hướng tới URL thật — nhờ vậy fingerprint áp trước cả script <head> của trang.
+          for (const url of profile.startUrls) {
+            const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' })
+            await controller.settled()
+            const sessionId = controller.sessionForTarget(targetId)
+            if (sessionId) await cdp.send('Page.navigate', { url }, sessionId)
+          }
           await controller.settled()
           for (const targetId of blankTabs) await cdp.send('Target.closeTarget', { targetId }).catch(() => {})
         }
