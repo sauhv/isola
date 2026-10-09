@@ -4,6 +4,7 @@ import { CheckCircle2, FilePlus, FolderPlus, Hammer, LayoutGrid, MoreVertical, R
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Extension, Group, Profile } from '../../shared/types'
 import Menu from '../components/Menu'
+import { useI18n } from '../lib/i18n'
 import { call, isola } from '../lib/isola'
 import { notYet } from '../lib/toast'
 import ExtensionScopeDialog from './ExtensionScopeDialog'
@@ -11,6 +12,7 @@ import ExtensionScopeDialog from './ExtensionScopeDialog'
 type SubTab = 'team' | 'recommended'
 
 export default function ExtensionsPage() {
+  const { t } = useI18n()
   const [subtab, setSubtab] = useState<SubTab>('team')
   const [extensions, setExtensions] = useState<Extension[]>([])
   const [groups, setGroups] = useState<Group[]>([])
@@ -63,14 +65,14 @@ export default function ExtensionsPage() {
     run('store', async () => {
       const ext = await call(isola().extensions.addFromStore(storeInput))
       setStoreInput('')
-      return `Đã thêm ${ext.name} ${ext.version}.`
+      return t('ext.added', { name: ext.name, ver: ext.version })
     })
   }
 
   const addFromFile = (kind: 'file' | 'folder') =>
     run(kind, async () => {
       const ext = await call(isola().extensions.addFromFile(kind))
-      return ext ? `Đã thêm ${ext.name} ${ext.version}.` : null
+      return ext ? t('ext.added', { name: ext.name, ver: ext.version }) : null
     })
 
   const checkUpdates = () =>
@@ -79,16 +81,16 @@ export default function ExtensionsPage() {
       const found = Object.fromEntries(list.filter((u) => u.latest).map((u) => [u.id, u.latest!]))
       setUpdates(found)
       const n = Object.keys(found).length
-      return n ? `Có ${n} extension có bản mới.` : 'Tất cả extension từ Web Store đã là bản mới nhất.'
+      return n ? t('ext.foundUpdates', { n }) : t('ext.allLatest')
     })
 
   function scopeText(e: Extension): string {
-    if (e.scope === 'all') return 'Tất cả profile'
+    if (e.scope === 'all') return t('extscope.all')
     if (e.scope === 'groups') {
       const names = e.groupIds.map((id) => groups.find((g) => g.id === id)?.name).filter(Boolean)
-      return names.length ? `Nhóm: ${names.join(', ')}` : 'Chưa chọn nhóm'
+      return names.length ? t('ext.scopeGroups', { names: names.join(', ') }) : t('ext.scopeNoGroup')
     }
-    return e.profileIds.length ? `${e.profileIds.length} profile` : 'Chưa chọn profile'
+    return e.profileIds.length ? t('ext.scopeNProfiles', { n: e.profileIds.length }) : t('ext.scopeNoProfile')
   }
 
   const shown = extensions.filter(
@@ -103,18 +105,18 @@ export default function ExtensionsPage() {
       <div className="panel pad">
         <div className="subtabs">
           <button className={`subtab${subtab === 'team' ? ' active' : ''}`} onClick={() => setSubtab('team')}>
-            Của tôi
+            {t('ext.tabMine')}
           </button>
           <button className={`subtab${subtab === 'recommended' ? ' active' : ''}`} onClick={() => setSubtab('recommended')}>
-            Gợi ý
+            {t('ext.tabRecommended')}
           </button>
         </div>
 
         {subtab === 'recommended' && (
           <div className="coming-soon">
             <Hammer size={40} />
-            <h4>Extension gợi ý</h4>
-            <p>Danh mục extension được tuyển chọn. Tính năng chưa phát triển.</p>
+            <h4>{t('ext.soonTitle')}</h4>
+            <p>{t('ext.soonDesc')}</p>
           </div>
         )}
 
@@ -122,37 +124,35 @@ export default function ExtensionsPage() {
           <>
             <form className="toolbar" onSubmit={addFromStore}>
               <button type="button" className="primary" disabled={!!busy} onClick={() => addFromFile('file')}>
-                <Upload size={15} /> Thêm extension
+                <Upload size={15} /> {t('ext.add')}
               </button>
               <div className="search" style={{ width: 240 }}>
                 <Search size={16} />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm extension" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('ext.searchPh')} />
               </div>
               <input
                 style={{ flex: 1, minWidth: 220 }}
                 value={storeInput}
                 onChange={(e) => setStoreInput(e.target.value)}
-                placeholder="Dán link Chrome Web Store hoặc ID extension"
+                placeholder={t('ext.storePh')}
               />
               <button type="submit" className="primary" disabled={!!busy || !storeInput.trim()}>
-                <Store size={15} /> {busy === 'store' ? 'Đang tải…' : 'Từ Web Store'}
+                <Store size={15} /> {busy === 'store' ? t('common.loading') : t('ext.fromStore')}
               </button>
               <button type="button" disabled={!!busy} onClick={() => addFromFile('folder')}>
-                <FolderPlus size={15} /> Từ thư mục
+                <FolderPlus size={15} /> {t('ext.fromFolder')}
               </button>
               <button type="button" disabled={!!busy} onClick={checkUpdates}>
-                <RefreshCw size={15} className={busy === 'check' ? 'spin' : undefined} /> Kiểm tra cập nhật
+                <RefreshCw size={15} className={busy === 'check' ? 'spin' : undefined} /> {t('ext.checkUpdates')}
               </button>
               <div className="spacer" />
-              <button type="button" className="icon" title="Phân loại" onClick={() => notYet('Phân loại extension')}>
+              <button type="button" className="icon" title={t('ext.categorize')} onClick={() => notYet(t('ext.categorizeExt'))}>
                 <LayoutGrid size={15} />
               </button>
             </form>
 
             <p className="note" style={{ margin: '0 0 14px' }}>
-              Thay đổi có hiệu lực từ lần mở profile tiếp theo. Dữ liệu extension (ví, đăng nhập…) lưu riêng trong từng
-              profile và được giữ khi cập nhật. Trang web có thể phát hiện một số extension, nên chỉ gán cho profile thật
-              sự cần.
+              {t('ext.note')}
             </p>
 
             {error && (
@@ -172,8 +172,8 @@ export default function ExtensionsPage() {
             {shown.length === 0 ? (
               <div className="empty">
                 {extensions.length === 0
-                  ? 'Chưa có extension. Dán link Chrome Web Store, hoặc thêm từ file / thư mục.'
-                  : 'Không có extension khớp tìm kiếm.'}
+                  ? t('ext.emptyNone')
+                  : t('ext.emptySearch')}
               </div>
             ) : (
               <div className="ext-grid">
@@ -189,65 +189,65 @@ export default function ExtensionsPage() {
                             {e.name}
                             <span className="muted small-text">{e.version}</span>
                             <span className="tag">{e.source === 'store' ? 'Web Store' : 'File'}</span>
-                            {newVersion && <span className="tag warn">có bản {newVersion}</span>}
+                            {newVersion && <span className="tag warn">{t('ext.hasNew', { v: newVersion })}</span>}
                           </div>
-                          <div className="muted small-text">Áp dụng: {scopeText(e)}</div>
+                          <div className="muted small-text">{t('ext.appliesTo', { s: scopeText(e) })}</div>
                         </div>
                         <button
                           className={`switch${e.enabled ? ' on' : ''}`}
                           disabled={isBusy}
-                          title={e.enabled ? 'Đang bật' : 'Đang tắt'}
+                          title={e.enabled ? t('ext.enabledTitle') : t('ext.disabledTitle')}
                           onClick={() => run(e.id, async () => void (await call(isola().extensions.update(e.id, { enabled: !e.enabled }))))}
                         />
                       </div>
                       {e.description && <div className="ext-card-desc">{e.description}</div>}
                       <div className="ext-card-foot">
                         <span className="badge-available">
-                          <CheckCircle2 size={13} /> Sẵn sàng
+                          <CheckCircle2 size={13} /> {t('ext.ready')}
                         </span>
                         <span className="spacer" />
                         <button className="small" onClick={() => setScopeOf(e)}>
-                          Phạm vi
+                          {t('ext.scope')}
                         </button>
                         <Menu
                           trigger={(toggle) => (
-                            <button className="icon small ghost" onClick={toggle} title="Thêm">
+                            <button className="icon small ghost" onClick={toggle} title={t('ext.more')}>
                               <MoreVertical size={16} />
                             </button>
                           )}
                           items={[
                             {
-                              label: 'Phạm vi áp dụng',
+                              label: t('ext.menuScope'),
                               onClick: () => setScopeOf(e)
                             },
                             e.source === 'store'
                               ? {
-                                  label: 'Cập nhật từ Web Store',
+                                  label: t('ext.updateFromStore'),
                                   icon: <RefreshCw size={14} />,
                                   onClick: () =>
                                     run(e.id, async () => {
                                       const u = await call(isola().extensions.updateFromStore(e.id))
                                       setUpdates(({ [e.id]: _, ...rest }) => rest)
                                       return u.version === e.version
-                                        ? `${u.name} đã là bản mới nhất.`
-                                        : `Đã cập nhật ${u.name} lên ${u.version}.`
+                                        ? t('ext.isLatest', { name: u.name })
+                                        : t('ext.updated', { name: u.name, ver: u.version })
                                     })
                                 }
                               : {
-                                  label: 'Cập nhật từ file',
+                                  label: t('ext.updateFromFile'),
                                   icon: <FilePlus size={14} />,
                                   onClick: () =>
                                     run(e.id, async () => {
                                       const u = await call(isola().extensions.updateFromFile(e.id, 'file'))
-                                      return u ? `Đã cập nhật ${u.name} lên ${u.version}.` : null
+                                      return u ? t('ext.updated', { name: u.name, ver: u.version }) : null
                                     })
                                 },
                             'divider',
                             {
-                              label: 'Xóa khỏi Isola',
+                              label: t('ext.menuRemove'),
                               danger: true,
                               onClick: () => {
-                                if (!confirm(`Xóa extension "${e.name}" khỏi Isola? Dữ liệu của nó trong các profile vẫn được giữ.`)) return
+                                if (!confirm(t('ext.confirmRemove', { name: e.name }))) return
                                 run(e.id, async () => void (await call(isola().extensions.remove(e.id))))
                               }
                             }

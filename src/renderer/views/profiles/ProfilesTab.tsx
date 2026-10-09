@@ -30,6 +30,7 @@ import type { Group, Profile, Tag } from '../../../shared/types'
 import Menu from '../../components/Menu'
 import { runBatch } from '../../lib/batch'
 import { colorFor, countryName, dateTimeParts } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 import { notYet, toast } from '../../lib/toast'
 import BulkCreateDialog from './BulkCreateDialog'
@@ -46,6 +47,7 @@ interface Props {
 }
 
 export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
+  const { t } = useI18n()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -178,13 +180,13 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
   const arrange = () =>
     bulk(async () => {
       const n = await call(isola().profiles.arrangeWindows([...selected]))
-      toast(n ? `Đã sắp ${n} cửa sổ.` : 'Không có profile đang chạy để sắp.', n ? 'success' : 'info')
+      toast(n ? t('pt.arranged', { n }) : t('pt.noneRunning'), n ? 'success' : 'info')
       return null
     })
   const exportCookies = (p: Profile) =>
     single(p.id, async () => {
       const r = await call(isola().profiles.exportCookies(p.id))
-      if (r.saved) toast(`Đã xuất ${r.count} cookie.`, 'success')
+      if (r.saved) toast(t('pt.exported', { n: r.count }), 'success')
     })
   const closeMany = () =>
     bulk(() =>
@@ -197,10 +199,10 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
   const trashMany = (list: Profile[]) => {
     const running = list.filter((p) => p.status === 'running')
     if (running.length) {
-      setError(`Đóng ${running.length} profile đang chạy trước khi đưa vào thùng rác.`)
+      setError(t('pt.closeFirst', { n: running.length }))
       return
     }
-    if (!confirm(`Đưa ${list.length} profile vào thùng rác? Dữ liệu trình duyệt được giữ lại, khôi phục được trong tab Thùng rác.`)) return
+    if (!confirm(t('pt.confirmTrash', { n: list.length }))) return
     bulk(() => runBatch(list, (p) => p.name, (p) => call(isola().profiles.archive(p.id))), true)
   }
 
@@ -211,7 +213,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
     <>
       <div className="toolbar">
         <select value={groupId} onChange={(e) => setGroupId(e.target.value)} style={{ width: 170 }}>
-          <option value="">Tất cả nhóm</option>
+          <option value="">{t('pt.allGroups')}</option>
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name} ({g.profileCount})
@@ -220,10 +222,10 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         </select>
         <div className="search" style={{ flex: 1, maxWidth: 520 }}>
           <Search size={16} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên, số, ID, ghi chú, IP, nền tảng" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('pt.searchPh')} />
         </div>
         <select value={tagId} onChange={(e) => setTagId(e.target.value)} style={{ width: 150 }}>
-          <option value="">Mọi tag</option>
+          <option value="">{t('pt.anyTag')}</option>
           {tags.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -232,54 +234,54 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         </select>
         <label className="checkbox" style={{ marginLeft: 6 }}>
           <input type="checkbox" checked={openedOnly} onChange={(e) => setOpenedOnly(e.target.checked)} />
-          Đang mở ({runningCount})
+          {t('pt.openedN', { n: runningCount })}
         </label>
       </div>
 
       <div className="toolbar">
         <button className="soft" disabled={bulkBusy || selected.size === 0} onClick={openMany}>
-          <Play size={15} /> Mở
+          <Play size={15} /> {t('common.open')}
         </button>
         <button disabled={bulkBusy || selected.size === 0} onClick={closeMany}>
-          <Square size={14} /> Đóng
+          <Square size={14} /> {t('common.close')}
         </button>
         <button disabled={bulkBusy || selected.size === 0} onClick={() => setMoving(selectedProfiles)}>
-          <FolderInput size={15} /> Chuyển nhóm
+          <FolderInput size={15} /> {t('pt.moveGroup')}
         </button>
         <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet('Xuất profile')}>
           <Upload size={15} /> Export
         </button>
-        <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet('Chia sẻ profile')}>
-          <Share2 size={15} /> Chia sẻ
+        <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet(t('pt.shareProfile'))}>
+          <Share2 size={15} /> {t('pt.share')}
         </button>
         <button
           className="icon"
-          title="Đưa vào thùng rác"
+          title={t('pt.trashTitle')}
           disabled={bulkBusy || selected.size === 0}
           onClick={() => trashMany(selectedProfiles)}
         >
           <Trash2 size={15} />
         </button>
-        <button disabled={bulkBusy || runningCount === 0} title="Sắp cửa sổ profile đang chạy thành lưới" onClick={arrange}>
-          <LayoutGrid size={15} /> Sắp cửa sổ
+        <button disabled={bulkBusy || runningCount === 0} title={t('pt.arrangeTitle')} onClick={arrange}>
+          <LayoutGrid size={15} /> {t('pt.arrange')}
         </button>
         {selected.size > 0 && (
           <span className="muted" style={{ marginLeft: 4 }}>
-            Đã chọn {selected.size}
+            {t('common.selected', { n: selected.size })}
             <button className="link" style={{ marginLeft: 8 }} onClick={() => setSelected(new Set())}>
-              Bỏ chọn
+              {t('common.deselect')}
             </button>
           </span>
         )}
         {bulkBusy && <Loader2 size={16} className="spin muted" />}
         <div className="spacer" />
         <button onClick={() => setBulkOpen(true)}>
-          <Boxes size={15} /> Tạo hàng loạt
+          <Boxes size={15} /> {t('pt.bulkCreate')}
         </button>
         <button className="primary" onClick={onCreate}>
-          <Plus size={15} /> Tạo profile
+          <Plus size={15} /> {t('app.create')}
         </button>
-        <button className="icon" title="Tải lại" onClick={reload}>
+        <button className="icon" title={t('common.reload')} onClick={reload}>
           <RefreshCw size={15} />
         </button>
       </div>
@@ -312,22 +314,22 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
               </th>
               <th className="sortable" onClick={() => toggleSort('serial')}>
                 <span className="th-sort">
-                  Số {sortIcon('serial')}
+                  {t('common.no')} {sortIcon('serial')}
                 </span>
               </th>
               <th>ID</th>
-              <th>Nhóm</th>
-              <th>Tên</th>
+              <th>{t('common.group')}</th>
+              <th>{t('common.name')}</th>
               <th>IP</th>
-              <th>Ghi chú</th>
+              <th>{t('pt.colNotes')}</th>
               <th className="sortable" onClick={() => toggleSort('lastOpened')}>
                 <span className="th-sort">
-                  Mở lần cuối {sortIcon('lastOpened')}
+                  {t('pt.colLastOpen')} {sortIcon('lastOpened')}
                 </span>
               </th>
-              <th>Nền tảng</th>
+              <th>{t('pt.colPlatform')}</th>
               <th>Tag</th>
-              <th className="sticky-right" style={{ textAlign: 'right' }}>Thao tác</th>
+              <th className="sticky-right" style={{ textAlign: 'right' }}>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -360,12 +362,12 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                         <div>
                           <div>{px.ip ?? px.host}</div>
                           <div className="muted small-text">
-                            {px.error ? 'Proxy lỗi' : px.country ? `${px.country} - ${countryName(px.country)}` : 'Chưa kiểm'}
+                            {px.error ? t('pt.proxyErr') : px.country ? `${px.country} - ${countryName(px.country)}` : t('proxies.notChecked')}
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <span className="muted">{p.lab ? 'Không proxy' : 'Chưa gán proxy'}</span>
+                      <span className="muted">{p.lab ? t('pt.noProxy') : t('pt.noProxyAssigned')}</span>
                     )}
                   </td>
                   <td>{p.notes ? <div className="two-line" title={p.notes}>{p.notes}</div> : <span className="muted">—</span>}</td>
@@ -393,9 +395,9 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                   </td>
                   <td className="clip">
                     {p.tags.length ? (
-                      p.tags.map((t) => (
-                        <span key={t.id} className="tag">
-                          {t.name}
+                      p.tags.map((tag) => (
+                        <span key={tag.id} className="tag">
+                          {tag.name}
                         </span>
                       ))
                     ) : (
@@ -411,7 +413,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                           disabled={isBusy}
                           onClick={() => single(p.id, () => call(isola().profiles.stop(p.id)))}
                         >
-                          {isBusy ? <Loader2 size={13} className="spin" /> : <Square size={12} fill="currentColor" />} Đóng
+                          {isBusy ? <Loader2 size={13} className="spin" /> : <Square size={12} fill="currentColor" />} {t('common.close')}
                         </button>
                       ) : (
                         <button
@@ -420,37 +422,37 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                           disabled={isBusy}
                           onClick={() => single(p.id, () => call(isola().profiles.start(p.id)))}
                         >
-                          {isBusy ? <Loader2 size={13} className="spin" /> : <Play size={13} fill="currentColor" />} Mở
+                          {isBusy ? <Loader2 size={13} className="spin" /> : <Play size={13} fill="currentColor" />} {t('common.open')}
                         </button>
                       )}
                       <Menu
                         trigger={(toggleMenu) => (
-                          <button className="icon small ghost" onClick={toggleMenu} title="Thêm">
+                          <button className="icon small ghost" onClick={toggleMenu} title={t('common.more')}>
                             <MoreVertical size={16} />
                           </button>
                         )}
                         items={[
-                          { label: 'Sửa', icon: <Pencil size={14} />, onClick: () => onEdit(p) },
+                          { label: t('common.edit'), icon: <Pencil size={14} />, onClick: () => onEdit(p) },
                           {
-                            label: 'Nhân bản',
+                            label: t('pt.clone'),
                             icon: <CopyPlus size={14} />,
                             onClick: () => single(p.id, () => call(isola().profiles.clone(p.id)).then(reload))
                           },
                           {
-                            label: 'Xuất cookie',
+                            label: t('pt.exportCookie'),
                             icon: <Cookie size={14} />,
                             disabled: !running,
                             onClick: () => exportCookies(p)
                           },
-                          { label: 'Chuyển nhóm', icon: <FolderInput size={14} />, onClick: () => setMoving([p]) },
+                          { label: t('pt.moveGroup'), icon: <FolderInput size={14} />, onClick: () => setMoving([p]) },
                           {
-                            label: 'Sao chép ID',
+                            label: t('pt.copyId'),
                             icon: <Copy size={14} />,
                             onClick: () => navigator.clipboard.writeText(p.id).catch(() => {})
                           },
                           'divider',
                           {
-                            label: 'Đưa vào thùng rác',
+                            label: t('pt.trashTitle'),
                             icon: <Trash2 size={14} />,
                             danger: true,
                             disabled: running,
@@ -467,13 +469,13 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         </table>
         {rows.length === 0 && (
           <div className="empty">
-            {profiles.length === 0 ? 'Chưa có profile nào. Bấm "Tạo profile".' : 'Không có profile khớp bộ lọc.'}
+            {profiles.length === 0 ? t('pt.emptyNone') : t('pt.emptyFilter')}
           </div>
         )}
       </div>
 
       <div className="table-foot">
-        <span>Tổng: {filtered.length}</span>
+        <span>{t('pt.total', { n: filtered.length })}</span>
         <button className="icon small ghost" disabled={current <= 1} onClick={() => setPage(current - 1)}>
           <ChevronLeft size={16} />
         </button>
@@ -491,7 +493,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
           {PAGE_SIZES.map((n) => (
             <option key={n} value={n}>
-              {n}/trang
+              {t('pt.perPage', { n })}
             </option>
           ))}
         </select>

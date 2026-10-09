@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Group, Proxy } from '../../../shared/types'
+import { useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 
 interface Props {
@@ -23,6 +24,7 @@ const splitTags = (s: string) =>
     .filter(Boolean)
 
 export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
+  const { t } = useI18n()
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [count, setCount] = useState('10')
   const [namePattern, setNamePattern] = useState('Profile {n}')
@@ -54,11 +56,11 @@ export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
 
   async function submit() {
     setError(null)
-    if (n < 1) return setError('Số lượng phải từ 1 trở lên.')
-    if (!namePattern.trim()) return setError('Nhập mẫu tên.')
-    if (proxyMode === 'rotate' && proxyIds.size === 0) return setError('Chọn ít nhất một proxy để gán xoay vòng.')
+    if (n < 1) return setError(t('bc.errCount'))
+    if (!namePattern.trim()) return setError(t('bc.errPattern'))
+    if (proxyMode === 'rotate' && proxyIds.size === 0) return setError(t('bc.errProxy'))
     if (!lab && proxyMode === 'none') {
-      if (!confirm('Không gán proxy: các profile này là profile lab (mở bằng IP máy). Tiếp tục?')) return
+      if (!confirm(t('bc.confirmNoProxy'))) return
     }
     setSaving(true)
     try {
@@ -78,7 +80,7 @@ export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
       const msg =
         r.errors.length === 0
           ? null
-          : `Đã tạo ${r.created}/${n} profile. ${r.errors.length} lỗi (vd dòng ${r.errors[0].index}: ${r.errors[0].reason}).`
+          : t('bc.doneErrors', { c: r.created, n, e: r.errors.length, i: r.errors[0].index, r: r.errors[0].reason })
       onDone(msg)
     } catch (e) {
       setError((e as Error).message)
@@ -89,30 +91,30 @@ export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
   return (
     <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog" style={{ width: 'min(620px, calc(100vw - 32px))' }}>
-        <h2>Tạo profile hàng loạt</h2>
+        <h2>{t('bc.title')}</h2>
         {error && <div className="error-bar">{error}</div>}
         <div className="form">
           <div className="form-row">
             <label className="field" style={{ width: 120 }}>
-              <span>Số lượng</span>
+              <span>{t('bc.count')}</span>
               <input value={count} onChange={(e) => setCount(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
             </label>
             <label className="field" style={{ flex: 1 }}>
-              <span>Mẫu tên</span>
+              <span>{t('bc.pattern')}</span>
               <input value={namePattern} onChange={(e) => setNamePattern(e.target.value)} placeholder="Profile {n}" />
-              <span className="hint">{'{n}'} là số thứ tự. Không có {'{n}'} thì số được nối vào cuối.</span>
+              <span className="hint">{t('bc.patternHint', { a: '{n}' })}</span>
             </label>
             <label className="field" style={{ width: 120 }}>
-              <span>Bắt đầu từ</span>
+              <span>{t('bc.startAt')}</span>
               <input value={startIndex} onChange={(e) => setStartIndex(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
             </label>
           </div>
 
           <div className="form-row">
             <label className="field" style={{ flex: 1 }}>
-              <span>Nhóm</span>
+              <span>{t('common.group')}</span>
               <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                <option value="">Không nhóm</option>
+                <option value="">{t('common.noGroup')}</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -121,28 +123,28 @@ export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
               </select>
             </label>
             <label className="field" style={{ flex: 1 }}>
-              <span>Nền tảng</span>
+              <span>{t('bc.platform')}</span>
               <input value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="facebook, tiktok…" />
             </label>
             <label className="field" style={{ flex: 1 }}>
               <span>Tag</span>
-              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Cách nhau bằng dấu phẩy" />
+              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t('pf.tagsPh')} />
             </label>
           </div>
 
           <label className="field">
-            <span>URL khởi động</span>
-            <textarea rows={2} value={startUrls} onChange={(e) => setStartUrls(e.target.value)} placeholder="Mỗi dòng một URL http/https" />
+            <span>{t('bc.startUrls')}</span>
+            <textarea rows={2} value={startUrls} onChange={(e) => setStartUrls(e.target.value)} placeholder={t('bc.startUrlsPh')} />
           </label>
 
           <div className="field">
             <span>Proxy</span>
             <div className="seg">
               <button type="button" className={proxyMode === 'none' ? 'active' : undefined} onClick={() => setProxyMode('none')}>
-                Không proxy (lab)
+                {t('bc.noProxyLab')}
               </button>
               <button type="button" className={proxyMode === 'rotate' ? 'active' : undefined} onClick={() => setProxyMode('rotate')}>
-                Gán xoay vòng
+                {t('bc.rotate')}
               </button>
             </div>
           </div>
@@ -150,7 +152,7 @@ export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
           {proxyMode === 'rotate' && (
             <>
               <div className="pick-list" style={{ marginLeft: 0 }}>
-                {proxies.length === 0 && <div className="muted">Chưa có proxy nào. Thêm ở mục Proxy.</div>}
+                {proxies.length === 0 && <div className="muted">{t('bc.noProxyYet')}</div>}
                 {proxies.map((p) => (
                   <label key={p.id} className="checkbox">
                     <input type="checkbox" checked={proxyIds.has(p.id)} onChange={() => toggleProxy(p.id)} />
@@ -159,19 +161,19 @@ export default function BulkCreateDialog({ groups, onClose, onDone }: Props) {
                 ))}
               </div>
               <span className="hint">
-                {proxyIds.size} proxy được chọn. {n} profile sẽ gán xoay vòng (1:1 nếu đủ số lượng).
+                {t('bc.rotateHint', { s: proxyIds.size, n })}
               </span>
               <label className="checkbox">
                 <input type="checkbox" checked={lab} onChange={(e) => setLab(e.target.checked)} />
-                Đánh dấu lab (không ép timezone/ngôn ngữ theo IP proxy)
+                {t('bc.labMark')}
               </label>
             </>
           )}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Hủy</button>
+          <button onClick={onClose}>{t('common.cancel')}</button>
           <button className="primary" disabled={saving || n < 1} onClick={submit}>
-            {saving && <Loader2 size={14} className="spin" />} Tạo {n} profile
+            {saving && <Loader2 size={14} className="spin" />} {t('bc.create', { n })}
           </button>
         </div>
       </div>

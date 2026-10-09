@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Profile } from '../../shared/types'
 import type { Page } from '../App'
+import { useI18n } from '../lib/i18n'
 import { call, isola } from '../lib/isola'
 import GroupsTab from './profiles/GroupsTab'
 import ProfileFormPage from './profiles/ProfileFormPage'
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
+  const { t } = useI18n()
   const [tab, setTab] = useState<Tab>('profiles')
   const [form, setForm] = useState<FormState>(null)
   // Tăng sau mỗi lần lưu để bảng tải lại.
@@ -66,20 +68,20 @@ export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
       {kernelMissing && (
         <div className="banner">
           <AlertTriangle size={16} />
-          <span>Chưa tải kernel Chrome nên chưa mở được profile nào.</span>
+          <span>{t('pp.kernelBanner')}</span>
           <span className="spacer" />
           <button className="small primary" onClick={() => onNavigate('kernels')}>
-            Tải kernel
+            {t('pp.downloadKernel')}
           </button>
         </div>
       )}
       {!kernelMissing && geoMissing && (
         <div className="banner">
           <AlertTriangle size={16} />
-          <span>Chưa có dữ liệu GeoIP: profile production cần biết timezone của proxy mới mở được.</span>
+          <span>{t('pp.geoBanner')}</span>
           <span className="spacer" />
           <button className="small primary" onClick={() => onNavigate('proxies')}>
-            Tải GeoIP
+            {t('proxies.downloadGeo')}
           </button>
         </div>
       )}
@@ -90,10 +92,10 @@ export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
             Profiles
           </button>
           <button className={`tab${tab === 'groups' ? ' active' : ''}`} onClick={() => setTab('groups')}>
-            Nhóm
+            {t('pp.tabGroups')}
           </button>
           <button className={`tab${tab === 'trash' ? ' active' : ''}`} onClick={() => setTab('trash')}>
-            Thùng rác
+            {t('pp.tabTrash')}
           </button>
         </div>
         {tab === 'profiles' && (

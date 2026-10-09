@@ -14,6 +14,7 @@ import type {
   Seed
 } from '../../../shared/types'
 import { countryName } from '../../lib/format'
+import { currentLang, D, useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 import { notYet } from '../../lib/toast'
 
@@ -27,14 +28,15 @@ interface Props {
 type ProxyMode = 'saved' | 'new' | 'none'
 type TabId = 'general' | 'proxy' | 'platform' | 'fingerprint' | 'advanced'
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'general', label: 'Chung' },
-  { id: 'proxy', label: 'Proxy' },
-  { id: 'platform', label: 'Nền tảng' },
-  { id: 'fingerprint', label: 'Fingerprint' },
-  { id: 'advanced', label: 'Nâng cao' }
+const TABS: { id: TabId; key: string }[] = [
+  { id: 'general', key: 'pf.tabGeneral' },
+  { id: 'proxy', key: 'Proxy' },
+  { id: 'platform', key: 'pf.tabPlatform' },
+  { id: 'fingerprint', key: 'Fingerprint' },
+  { id: 'advanced', key: 'pf.tabAdvanced' }
 ]
 const TAB_ORDER: TabId[] = TABS.map((t) => t.id)
+const TAB_LABEL = (tb: { key: string }, t: (k: string) => string) => (tb.key.includes('.') ? t(tb.key) : tb.key)
 
 const PLATFORMS = ['facebook', 'tiktok', 'google', 'amazon', 'shopee', 'instagram', 'twitter', 'telegram', 'discord']
 const LANGUAGES = ['en-US', 'en-GB', 'vi-VN', 'de-DE', 'fr-FR', 'es-ES', 'pt-BR', 'ja-JP', 'ko-KR', 'zh-CN', 'zh-TW', 'th-TH', 'id-ID', 'ru-RU', 'it-IT', 'nl-NL', 'pl-PL', 'tr-TR']
@@ -52,14 +54,16 @@ const splitTags = (s: string) =>
     .filter(Boolean)
 
 function checkText(c: ProxyCheck | null | undefined): string {
-  if (!c) return 'Chưa kiểm tra'
-  if (c.error) return `Lỗi: ${c.error}`
+  const tr = (k: string) => { const e = D[k]; return e ? (currentLang === 'vi' ? e[0] : e[1]) : k }
+  if (!c) return tr('pf.notChecked')
+  if (c.error) return tr('px.errPrefix').split('{e}').join(c.error)
   return [c.ip, c.country && `${c.country} - ${countryName(c.country)}`, c.city, c.timezone, c.latencyMs != null && `${c.latencyMs} ms`]
     .filter(Boolean)
     .join(' · ')
 }
 
 export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
+  const { t } = useI18n()
   const editing = !!profile
 
   // ---- dữ liệu nền ----
@@ -217,11 +221,11 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
 
   async function save() {
     setError(null)
-    if (!name.trim()) return setError('Nhập tên profile.')
-    if (!fp) return setError('Chưa có fingerprint.')
-    if (proxyMode === 'saved' && !proxyId) return setError('Chọn một proxy đã lưu, hoặc chuyển sang "Proxy mới" / "Không proxy".')
-    if (proxyMode === 'new' && (!draft.host.trim() || !draft.port)) return setError('Nhập host và port của proxy mới.')
-    if (editing && fpDirty && !confirm('Đổi fingerprint: các trang web sẽ thấy profile này như một thiết bị khác. Tiếp tục?')) return
+    if (!name.trim()) return setError(t('pf.errName'))
+    if (!fp) return setError(t('pf.errNoFp'))
+    if (proxyMode === 'saved' && !proxyId) return setError(t('pf.errPickProxy'))
+    if (proxyMode === 'new' && (!draft.host.trim() || !draft.port)) return setError(t('pf.errNewProxy'))
+    if (editing && fpDirty && !confirm(t('pf.confirmFp'))) return
 
     setSaving(true)
     try {
@@ -267,21 +271,21 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
     ? seed?.timezone
     : proxyMode === 'saved'
       ? savedProxy?.lastCheck?.timezone
-        ? `Theo IP proxy: ${savedProxy.lastCheck.timezone}`
-        : 'Theo IP proxy (kiểm tra proxy để biết)'
+        ? t('pf.tzByProxyKnown', { tz: savedProxy.lastCheck.timezone })
+        : t('pf.tzByProxyUnknown')
       : draftCheck?.timezone
-        ? `Theo IP proxy: ${draftCheck.timezone}`
-        : 'Theo IP proxy'
+        ? t('pf.tzByProxyKnown', { tz: draftCheck.timezone })
+        : t('pf.tzByProxy')
   const proxyText =
     proxyMode === 'none'
-      ? 'Không proxy (lab)'
+      ? t('pf.pxNoneLab')
       : proxyMode === 'saved'
         ? savedProxy
           ? `${savedProxy.label} · ${checkText(savedProxy.lastCheck)}`
-          : 'Chưa chọn'
+          : t('pf.pxNotChosen')
         : draft.host
           ? `${draft.type}://${draft.host}:${draft.port} (mới)`
-          : 'Proxy mới'
+          : t('pf.pxNew')
 
   // Công tắc "nhiễu phần cứng" kiểu AdsPower. on+disabled = Isola đang áp theo seed; notYet = chưa làm.
   const noiseSwitch = (label: string, on: boolean, done: boolean) => (
@@ -290,8 +294,8 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
         type="button"
         className={`switch${on ? ' on' : ''}`}
         disabled={done}
-        onClick={() => !done && notYet(`Nhiễu ${label}`)}
-        title={done ? 'Isola áp theo seed, không chỉnh tay' : undefined}
+        onClick={() => !done && notYet(t('pf.noiseFeat', { l: label }))}
+        title={done ? t('pf.noiseBySeed') : undefined}
       />
       {label}
     </label>
@@ -300,22 +304,22 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
   return (
     <div className="form-page">
       <div className="form-page-head">
-        <button className="icon ghost" onClick={onClose} title="Quay lại">
+        <button className="icon ghost" onClick={onClose} title={t('common.back')}>
           <ArrowLeft size={18} />
         </button>
-        <h1 className="page-title">{editing ? `Sửa profile #${profile!.serial}` : 'Tạo profile'}</h1>
+        <h1 className="page-title">{editing ? t('pf.titleEdit', { n: profile!.serial }) : t('app.create')}</h1>
         <span className="spacer" />
-        <button onClick={onClose}>Hủy</button>
+        <button onClick={onClose}>{t('common.cancel')}</button>
         <button className="primary" disabled={saving || !fp} onClick={save}>
           {saving && <Loader2 size={14} className="spin" />}
-          {editing ? 'Lưu' : 'Tạo profile'}
+          {editing ? t('common.save') : t('app.create')}
         </button>
       </div>
 
       <div className="tabs form-tabs">
-        {TABS.map((t) => (
-          <button key={t.id} className={`tab${activeTab === t.id ? ' active' : ''}`} onClick={() => scrollTo(t.id)}>
-            {t.label}
+        {TABS.map((tb) => (
+          <button key={tb.id} className={`tab${activeTab === tb.id ? ' active' : ''}`} onClick={() => scrollTo(tb.id)}>
+            {TAB_LABEL(tb, t)}
           </button>
         ))}
       </div>
@@ -334,31 +338,31 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
           {/* ---------- Chung ---------- */}
           <section className="card" id="general" ref={sectionRefs.general}>
             <h3>
-              <User size={16} /> Thông tin chung
+              <User size={16} /> {t('pf.secGeneral')}
             </h3>
             <div className="row-field">
-              <span className="row-label">Tên</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Tên profile" autoFocus />
+              <span className="row-label">{t('common.name')}</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder={t('pf.namePh')} autoFocus />
             </div>
             <div className="row-field">
-              <span className="row-label">Trình duyệt</span>
+              <span className="row-label">{t('pf.browser')}</span>
               <select disabled style={{ width: 280 }}>
                 {kernels.map((k) => (
                   <option key={k.id}>
-                    Chrome for Testing {k.major}{k.installed ? '' : ' · chưa tải'}
+                    Chrome for Testing {k.major}{k.installed ? '' : t('pf.notDownloaded')}
                   </option>
                 ))}
               </select>
             </div>
             <div className="row-field">
-              <span className="row-label">Hệ điều hành</span>
+              <span className="row-label">{t('pf.os')}</span>
               <div className="seg">
                 {(['windows', 'macos'] as const).map((os) => (
                   <button
                     key={os}
                     className={seed?.os === os ? 'active' : undefined}
                     disabled={hostOs !== os}
-                    title={hostOs !== os ? 'Chỉ giả cùng hệ điều hành với máy đang chạy Isola' : undefined}
+                    title={hostOs !== os ? t('pf.osTitle') : undefined}
                   >
                     {os === 'windows' ? 'Windows' : 'macOS'}
                   </button>
@@ -369,15 +373,15 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               <span className="row-label">User-Agent</span>
               <div className="inline-fields" style={{ flexWrap: 'nowrap' }}>
                 <input value={seed?.userAgent ?? ''} readOnly style={{ flex: 1 }} className="mono small-text" />
-                <button className="icon" title="Tạo fingerprint mới" disabled={fpBusy} onClick={() => newFingerprint()}>
+                <button className="icon" title={t('pf.newFpTitle')} disabled={fpBusy} onClick={() => newFingerprint()}>
                   <RefreshCw size={15} className={fpBusy ? 'spin' : undefined} />
                 </button>
               </div>
             </div>
             <div className="row-field">
-              <span className="row-label">Nhóm</span>
+              <span className="row-label">{t('common.group')}</span>
               <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                <option value="">Không nhóm</option>
+                <option value="">{t('common.noGroup')}</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -387,10 +391,10 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
             </div>
             <div className="row-field">
               <span className="row-label">Tag</span>
-              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Cách nhau bằng dấu phẩy" />
+              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t('pf.tagsPh')} />
             </div>
             <div className="row-field">
-              <span className="row-label">Nền tảng</span>
+              <span className="row-label">{t('pf.platform')}</span>
               <div className="inline-fields" style={{ flexWrap: 'nowrap' }}>
                 <input
                   value={platform}
@@ -405,13 +409,13 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                     <option key={p} value={p} />
                   ))}
                 </datalist>
-                <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Tài khoản (username)" style={{ flex: 1 }} />
+                <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('pf.accountPh')} style={{ flex: 1 }} />
               </div>
             </div>
             <div className="row-field top">
               <span className="row-label">
                 Cookie
-                <span className="hint">JSON hoặc cookies.txt</span>
+                <span className="hint">{t('pf.cookieFmt')}</span>
               </span>
               <div>
                 <textarea
@@ -424,13 +428,13 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                   placeholder='[{"domain":".example.com","name":"sid","value":"…"}]'
                 />
                 <span className="hint">
-                  Cookie được mã hóa khi lưu và nạp vào trình duyệt ở lần mở kế tiếp.
-                  {editing ? ' Để trống nếu không nhập thêm.' : ''}
+                  {t('pf.cookieNote')}
+                  {editing ? t('pf.cookieNoteEdit') : ''}
                 </span>
               </div>
             </div>
             <div className="row-field top">
-              <span className="row-label">Ghi chú</span>
+              <span className="row-label">{t('pf.notes')}</span>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
           </section>
@@ -441,33 +445,33 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               <Globe size={16} /> Proxy
             </h3>
             <div className="row-field">
-              <span className="row-label">Kiểu kết nối</span>
+              <span className="row-label">{t('pf.connType')}</span>
               <div className="seg">
                 <button className={proxyMode === 'saved' ? 'active' : undefined} onClick={() => setProxyMode('saved')}>
-                  Proxy đã lưu
+                  {t('pf.pxSaved')}
                 </button>
                 <button className={proxyMode === 'new' ? 'active' : undefined} onClick={() => setProxyMode('new')}>
-                  Proxy mới
+                  {t('pf.pxNewBtn')}
                 </button>
                 <button className={proxyMode === 'none' ? 'active' : undefined} onClick={() => setProxyMode('none')}>
-                  Không proxy
+                  {t('pf.pxNoneBtn')}
                 </button>
               </div>
             </div>
 
             {proxyMode === 'saved' && (
               <div className="row-field top">
-                <span className="row-label">Chọn proxy</span>
+                <span className="row-label">{t('pf.pickProxy')}</span>
                 <div>
                   <div className="inline-fields" style={{ flexWrap: 'nowrap' }}>
                     <select value={proxyId} onChange={(e) => setProxyId(e.target.value)} style={{ flex: 1 }}>
-                      <option value="">— Chọn —</option>
+                      <option value="">{t('pf.pxChoose')}</option>
                       {proxies.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.label} · {p.type}
                           {p.lastCheck && !p.lastCheck.error ? ` · ${p.lastCheck.ip} ${p.lastCheck.country ?? ''}` : ''}
-                          {p.lastCheck?.error ? ' · lỗi' : ''}
-                          {p.profileCount > 0 && p.id !== profile?.proxyId ? ` · đang dùng bởi ${p.profileCount} profile` : ''}
+                          {p.lastCheck?.error ? t('pf.pxErrSuffix') : ''}
+                          {p.profileCount > 0 && p.id !== profile?.proxyId ? t('pf.pxInUse', { n: p.profileCount }) : ''}
                         </option>
                       ))}
                     </select>
@@ -487,7 +491,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
             {proxyMode === 'new' && (
               <>
                 <div className="row-field">
-                  <span className="row-label">Loại / Host / Port</span>
+                  <span className="row-label">{t('pf.typeHostPort')}</span>
                   <div className="inline-fields" style={{ flexWrap: 'nowrap' }}>
                     <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as ProxyType })} style={{ width: 110 }}>
                       <option value="http">HTTP</option>
@@ -504,7 +508,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                   </div>
                 </div>
                 <div className="row-field">
-                  <span className="row-label">Tài khoản proxy</span>
+                  <span className="row-label">{t('pf.proxyAccount')}</span>
                   <div className="inline-fields" style={{ flexWrap: 'nowrap' }}>
                     <input value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} placeholder="Username" style={{ flex: 1 }} autoComplete="off" />
                     <input
@@ -528,19 +532,19 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                 )}
                 <div className="row-field">
                   <span />
-                  <span className="hint">Proxy mới được lưu vào danh sách Proxy khi tạo profile. Password được mã hóa.</span>
+                  <span className="hint">{t('pf.newProxyHint')}</span>
                 </div>
               </>
             )}
 
             {proxyMode === 'none' ? (
-              <div className="note">Không proxy: profile mở bằng IP thật của máy và được đánh dấu là profile lab.</div>
+              <div className="note">{t('pf.noProxyNote')}</div>
             ) : (
               <div className="row-field">
                 <span />
                 <label className="checkbox">
                   <input type="checkbox" checked={lab} onChange={(e) => setLab(e.target.checked)} />
-                  Profile lab: không ép timezone/ngôn ngữ theo IP proxy
+                  {t('pf.labCheckbox')}
                 </label>
               </div>
             )}
@@ -549,31 +553,31 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
           {/* ---------- Nền tảng ---------- */}
           <section className="card" id="platform" ref={sectionRefs.platform}>
             <h3>
-              <Layers size={16} /> Nền tảng
+              <Layers size={16} /> {t('pf.secPlatform')}
             </h3>
             <div className="row-field">
-              <span className="row-label">Tài khoản nền tảng</span>
-              <button onClick={() => notYet('Thêm tài khoản nền tảng')}>
-                <Plus size={15} /> Thêm tài khoản nền tảng
+              <span className="row-label">{t('pf.platformAccount')}</span>
+              <button onClick={() => notYet(t('pf.addPlatformAccount'))}>
+                <Plus size={15} /> {t('pf.addPlatformAccount')}
               </button>
             </div>
             <div className="row-field top">
-              <span className="row-label">Tab mở sẵn</span>
-              <textarea rows={3} value={startUrls} onChange={(e) => setStartUrls(e.target.value)} placeholder="Mỗi dòng một URL http/https" />
+              <span className="row-label">{t('pf.tabsOpen')}</span>
+              <textarea rows={3} value={startUrls} onChange={(e) => setStartUrls(e.target.value)} placeholder={t('bc.startUrlsPh')} />
             </div>
             <div className="row-field">
-              <span className="row-label">Vị trí (Geolocation)</span>
+              <span className="row-label">{t('pf.geolocation')}</span>
               <div className="seg">
-                <button className="active">Theo IP</button>
-                <button onClick={() => notYet('Vị trí tùy chỉnh')}>Tùy chỉnh</button>
-                <button onClick={() => notYet('Chặn vị trí')}>Chặn</button>
+                <button className="active">{t('pf.byIP')}</button>
+                <button onClick={() => notYet(t('pf.customLocation'))}>{t('common.custom')}</button>
+                <button onClick={() => notYet(t('pf.blockLocation'))}>{t('pf.block')}</button>
               </div>
             </div>
             <div className="row-field">
-              <span className="row-label">Ngôn ngữ hiển thị</span>
+              <span className="row-label">{t('pf.displayLang')}</span>
               <div className="seg">
-                <button className="active">Theo ngôn ngữ</button>
-                <button onClick={() => notYet('Ngôn ngữ hiển thị tùy chỉnh')}>Tùy chỉnh</button>
+                <button className="active">{t('pf.byLang')}</button>
+                <button onClick={() => notYet(t('pf.customDisplayLang'))}>{t('common.custom')}</button>
               </div>
             </div>
           </section>
@@ -584,7 +588,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               <Fingerprint size={16} /> Fingerprint <span className="tag" style={{ marginLeft: 4 }}>compat</span>
             </h3>
             <div className="row-field">
-              <span className="row-label">Thiết bị</span>
+              <span className="row-label">{t('pf.device')}</span>
               <select value={fp?.catalogId ?? ''} disabled={fpBusy} onChange={(e) => newFingerprint(e.target.value)}>
                 {catalog.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -597,7 +601,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               <span className="row-label">WebRTC</span>
               <div className="seg">
                 <button className={seed?.webrtc === 'replace' ? 'active' : undefined} onClick={() => patchSeed({ webrtc: 'replace' })}>
-                  Thay bằng IP proxy
+                  {t('pf.webrtcReplace')}
                 </button>
                 <button className={seed?.webrtc === 'disable' ? 'active' : undefined} onClick={() => patchSeed({ webrtc: 'disable' })}>
                   Tắt
@@ -619,7 +623,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               )}
             </div>
             <div className="row-field">
-              <span className="row-label">Ngôn ngữ</span>
+              <span className="row-label">{t('pf.lang')}</span>
               {effectiveLab ? (
                 <select
                   value={seed?.language ?? 'en-US'}
@@ -632,20 +636,20 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                   ))}
                 </select>
               ) : (
-                <span className="muted">Theo quốc gia của IP proxy</span>
+                <span className="muted">{t('pf.byProxyCountry')}</span>
               )}
             </div>
             <div className="row-field">
-              <span className="row-label">Độ phân giải</span>
+              <span className="row-label">{t('pf.resolution')}</span>
               <span>
                 {seed ? `${seed.screen.width} × ${seed.screen.height}` : '—'}
                 {seed && seed.screen.dpr !== 1 && <span className="muted"> · tỉ lệ {seed.screen.dpr * 100}%</span>}
-                <span className="muted"> · theo thiết bị</span>
+                <span className="muted">{t('pf.byDevice')}</span>
               </span>
             </div>
             <div className="row-field">
-              <span className="row-label">Phần cứng</span>
-              <span>{seed ? `${seed.hardware.cores} nhân CPU · ${seed.hardware.memoryGb} GB RAM` : '—'}</span>
+              <span className="row-label">{t('pf.hardware')}</span>
+              <span>{seed ? t('pf.hwValue', { c: seed.hardware.cores, m: seed.hardware.memoryGb }) : '—'}</span>
             </div>
             <div className="row-field">
               <span className="row-label">WebGL</span>
@@ -654,32 +658,32 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
             <div className="row-field">
               <span className="row-label">WebGPU</span>
               <div className="seg">
-                <button className="active">Theo WebGL</button>
-                <button onClick={() => notYet('WebGPU Real')}>Thật</button>
-                <button onClick={() => notYet('WebGPU Disabled')}>Tắt</button>
+                <button className="active">{t('pf.webgpuByWebgl')}</button>
+                <button onClick={() => notYet('WebGPU Real')}>{t('pf.real')}</button>
+                <button onClick={() => notYet('WebGPU Disabled')}>{t('pf.off')}</button>
               </div>
             </div>
             <div className="row-field">
-              <span className="row-label">Thiết bị media</span>
-              <span>{seed ? `${seed.mediaDevices.cameras} camera · ${seed.mediaDevices.mics} micro` : '—'}</span>
+              <span className="row-label">{t('pf.mediaDevice')}</span>
+              <span>{seed ? t('pf.mediaValue', { c: seed.mediaDevices.cameras, m: seed.mediaDevices.mics }) : '—'}</span>
             </div>
             <div className="row-field">
-              <span className="row-label">Font</span>
+              <span className="row-label">{t('pf.font')}</span>
               <div className="seg">
-                <button className="active">Mặc định</button>
-                <button onClick={() => notYet('Danh sách font tùy chỉnh')}>Tùy chỉnh</button>
+                <button className="active">{t('pf.default')}</button>
+                <button onClick={() => notYet(t('pf.customFontList'))}>{t('common.custom')}</button>
               </div>
             </div>
-            <div className="note">Chế độ compat. Fingerprint áp qua CDP trên Chrome for Testing, chưa phải kernel vá.</div>
+            <div className="note">{t('pf.compatNote')}</div>
           </section>
 
           {/* ---------- Nâng cao ---------- */}
           <section className="card" id="advanced" ref={sectionRefs.advanced}>
             <h3>
-              <SlidersHorizontal size={16} /> Nâng cao
+              <SlidersHorizontal size={16} /> {t('pf.secAdvanced')}
             </h3>
             <div className="row-field top">
-              <span className="row-label">Nhiễu phần cứng</span>
+              <span className="row-label">{t('pf.hwNoise')}</span>
               <div className="inline-fields" style={{ gap: 16 }}>
                 {noiseSwitch('Canvas', true, true)}
                 {noiseSwitch('AudioContext', true, true)}
@@ -691,21 +695,21 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
             </div>
             <div className="row-field">
               <span className="row-label">Extension</span>
-              <span className="muted">Quản lý ở mục Extension; gán theo tất cả / nhóm / từng profile.</span>
+              <span className="muted">{t('pf.extNote')}</span>
             </div>
             <div className="row-field">
-              <span className="row-label">Đồng bộ dữ liệu</span>
-              <button onClick={() => notYet('Đồng bộ dữ liệu')}>Thiết lập</button>
+              <span className="row-label">{t('pf.dataSync')}</span>
+              <button onClick={() => notYet(t('pf.dataSync'))}>{t('pf.setup')}</button>
             </div>
             <div className="row-field">
-              <span className="row-label">Cài đặt trình duyệt</span>
-              <button onClick={() => notYet('Cài đặt trình duyệt')}>Thiết lập</button>
+              <span className="row-label">{t('pf.browserSettings')}</span>
+              <button onClick={() => notYet(t('pf.browserSettings'))}>{t('pf.setup')}</button>
             </div>
             <div className="row-field">
-              <span className="row-label">Fingerprint ngẫu nhiên mỗi lần mở</span>
+              <span className="row-label">{t('pf.randomFp')}</span>
               <label className="checkbox">
-                <button type="button" className="switch" onClick={() => notYet('Fingerprint ngẫu nhiên mỗi lần mở')} />
-                <span className="muted">Isola cố tình giữ fingerprint ổn định để không bị phát hiện.</span>
+                <button type="button" className="switch" onClick={() => notYet(t('pf.randomFp'))} />
+                <span className="muted">{t('pf.randomFpNote')}</span>
               </label>
             </div>
           </section>
@@ -715,18 +719,18 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
         <aside className="card overview">
           <div className="overview-head">
             <h3 style={{ margin: 0 }}>
-              <Cpu size={16} /> Tổng quan
+              <Cpu size={16} /> {t('pf.overview')}
             </h3>
             <button className="link" disabled={fpBusy} onClick={() => newFingerprint()}>
-              <Shuffle size={13} /> Fingerprint mới
+              <Shuffle size={13} /> {t('pf.newFp')}
             </button>
           </div>
           <dl className="kv">
-            <dt>Trình duyệt</dt>
+            <dt>{t('pf.browser')}</dt>
             <dd>{seed ? `Chrome ${seed.chromeMajor}` : '—'}</dd>
-            <dt>Hệ điều hành</dt>
+            <dt>{t('pf.os')}</dt>
             <dd>{seed ? (seed.os === 'windows' ? 'Windows' : 'macOS') : '—'}</dd>
-            <dt>Thiết bị</dt>
+            <dt>{t('pf.device')}</dt>
             <dd>{device?.label ?? fp?.catalogId ?? '—'}</dd>
             <dt>User-Agent</dt>
             <dd className="mono small-text">{seed?.userAgent ?? '—'}</dd>
@@ -734,26 +738,26 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
             <dd>{proxyText}</dd>
             <dt>Timezone</dt>
             <dd>{timezoneText ?? '—'}</dd>
-            <dt>Ngôn ngữ</dt>
-            <dd>{effectiveLab ? seed?.language : 'Theo IP proxy'}</dd>
+            <dt>{t('pf.lang')}</dt>
+            <dd>{effectiveLab ? seed?.language : t('pf.tzByProxy')}</dd>
             <dt>WebRTC</dt>
-            <dd>{seed?.webrtc === 'disable' ? 'Tắt' : 'Thay bằng IP proxy'}</dd>
-            <dt>Màn hình</dt>
+            <dd>{seed?.webrtc === 'disable' ? t('pf.off') : t('pf.webrtcReplace')}</dd>
+            <dt>{t('pf.ovScreen')}</dt>
             <dd>{seed ? `${seed.screen.width}×${seed.screen.height}` : '—'}</dd>
             <dt>WebGL</dt>
             <dd className="small-text">{seed?.webgl.vendor ?? '—'}</dd>
             <dt>CPU / RAM</dt>
-            <dd>{seed ? `${seed.hardware.cores} nhân · ${seed.hardware.memoryGb} GB` : '—'}</dd>
+            <dd>{seed ? t('pf.cpuRamValue', { c: seed.hardware.cores, m: seed.hardware.memoryGb }) : '—'}</dd>
             <dt>Canvas</dt>
-            <dd>{seed ? `Nhiễu #${seed.canvasNoise}` : '—'}</dd>
+            <dd>{seed ? t('pf.noiseN', { n: seed.canvasNoise }) : '—'}</dd>
             <dt>Audio</dt>
-            <dd>{seed ? `Nhiễu #${seed.audioNoise}` : '—'}</dd>
+            <dd>{seed ? t('pf.noiseN', { n: seed.audioNoise }) : '—'}</dd>
             <dt>Media</dt>
-            <dd>{seed ? `${seed.mediaDevices.cameras} camera · ${seed.mediaDevices.mics} micro` : '—'}</dd>
+            <dd>{seed ? t('pf.mediaValue', { c: seed.mediaDevices.cameras, m: seed.mediaDevices.mics }) : '—'}</dd>
           </dl>
           {editing && fpDirty && (
             <p className="hint" style={{ marginBottom: 0 }}>
-              Fingerprint sẽ được đổi khi bấm Lưu.
+              {t('pf.fpWillChange')}
             </p>
           )}
         </aside>
