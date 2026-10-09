@@ -4,6 +4,8 @@ import { Loader2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import type { Proxy, ProxyCheck, ProxyType } from '../../shared/types'
 import { countryName } from '../lib/format'
+import { currentLang, D } from '../lib/i18n'
+import { useI18n } from '../lib/i18n'
 import { call, isola } from '../lib/isola'
 
 interface Props {
@@ -13,13 +15,14 @@ interface Props {
 }
 
 function checkText(c: ProxyCheck): string {
-  if (c.error) return `Lỗi: ${c.error}`
+  if (c.error) { const e = D['px.errPrefix']; return (e ? (currentLang === 'vi' ? e[0] : e[1]) : 'Error: {e}').split('{e}').join(c.error) }
   return [c.ip, c.country && `${c.country} - ${countryName(c.country)}`, c.city, c.timezone, c.latencyMs != null && `${c.latencyMs} ms`]
     .filter(Boolean)
     .join(' · ')
 }
 
 export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
+  const { t } = useI18n()
   const [label, setLabel] = useState(proxy?.label ?? '')
   const [type, setType] = useState<ProxyType>(proxy?.type ?? 'http')
   const [host, setHost] = useState(proxy?.host ?? '')
@@ -89,7 +92,7 @@ export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
   return (
     <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <form className="dialog" onSubmit={submit} autoComplete="off">
-        <h2>{proxy ? 'Sửa proxy' : 'Thêm proxy'}</h2>
+        <h2>{proxy ? t('px.titleEdit') : t('px.titleAdd')}</h2>
         {error && <div className="error-bar">{error}</div>}
         <div className="form">
           {proxy && (
@@ -99,12 +102,12 @@ export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
             </div>
           )}
           <label className="field">
-            <span>Nhãn</span>
-            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Để trống = host:port" />
+            <span>{t('common.label')}</span>
+            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t('px.labelPh')} />
           </label>
           <div className="form-row">
             <label className="field" style={{ width: 130 }}>
-              <span>Loại proxy</span>
+              <span>{t('px.type')}</span>
               <select value={type} onChange={(e) => setType(e.target.value as ProxyType)}>
                 <option value="http">HTTP</option>
                 <option value="https">HTTPS</option>
@@ -113,7 +116,7 @@ export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
             </label>
             <label className="field" style={{ flex: 1 }}>
               <span>IP checker</span>
-              <select disabled title="Isola dùng dữ liệu GeoIP offline (DB-IP)">
+              <select disabled title={t('px.ipCheckerTitle')}>
                 <option>DB-IP (offline)</option>
               </select>
             </label>
@@ -131,7 +134,7 @@ export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
                 style={{ width: 100 }}
               />
               <button type="button" disabled={checking || !host.trim() || !port} onClick={testNow}>
-                {checking && <Loader2 size={14} className="spin" />} Kiểm tra
+                {checking && <Loader2 size={14} className="spin" />} {t('common.check')}
               </button>
             </div>
             {check && <div className={`check-result ${check.error ? 'status down' : 'status running'}`}>{checkText(check)}</div>}
@@ -148,7 +151,7 @@ export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
                 value={password}
                 disabled={clearPassword}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={proxy?.hasPassword ? '•••••• (giữ nguyên)' : ''}
+                placeholder={proxy?.hasPassword ? t('px.keepPw') : ''}
                 autoComplete="new-password"
               />
             </label>
@@ -156,24 +159,24 @@ export default function ProxyEditor({ proxy, onClose, onSaved }: Props) {
           {proxy?.hasPassword && (
             <label className="checkbox">
               <input type="checkbox" checked={clearPassword} onChange={(e) => setClearPassword(e.target.checked)} />
-              Xóa password đã lưu
+              {t('px.clearPw')}
             </label>
           )}
           <label className="field">
-            <span>URL đổi IP (proxy xoay)</span>
+            <span>{t('px.changeIpUrl')}</span>
             <input value={refreshUrl} onChange={(e) => setRefreshUrl(e.target.value)} placeholder="https://..." />
-            <span className="hint">Tùy chọn. Isola gọi URL này khi bấm "Đổi IP", rồi kiểm tra lại proxy.</span>
+            <span className="hint">{t('px.changeIpHint')}</span>
           </label>
           <p className="hint muted small-text" style={{ margin: 0 }}>
-            Password được mã hóa bằng khóa của Windows/macOS (safeStorage) trước khi lưu.
+            {t('px.pwEncrypted')}
           </p>
         </div>
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
-            Hủy
+            {t('common.cancel')}
           </button>
           <button type="submit" className="primary" disabled={saving || !host.trim() || !port}>
-            {proxy ? 'Lưu' : 'Thêm'}
+            {proxy ? t('common.save') : t('common.add')}
           </button>
         </div>
       </form>

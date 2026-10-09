@@ -2,6 +2,7 @@
 
 import { Ban, CheckCircle2, Info, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useI18n } from '../lib/i18n'
 import { subscribeToasts, type ToastItem } from '../lib/toast'
 
 const ICON = {
@@ -12,6 +13,7 @@ const ICON = {
 
 /** Hiển thị toast ở góc dưới phải, tự biến mất sau vài giây. Gắn một lần trong App. */
 export default function ToastHost() {
+  const { t } = useI18n()
   const [items, setItems] = useState<ToastItem[]>([])
 
   useEffect(
@@ -27,11 +29,11 @@ export default function ToastHost() {
 
   return (
     <div className="toast-host">
-      {items.map((t) => (
-        <div key={t.id} className={`toast ${t.kind}`} role="status">
-          {ICON[t.kind]}
-          <span>{t.text}</span>
-          <button className="toast-close" onClick={() => dismiss(t.id)} aria-label="Đóng">
+      {items.map((item) => (
+        <div key={item.id} className={`toast ${item.kind}`} role="status">
+          {ICON[item.kind]}
+          <span>{item.text}</span>
+          <button className="toast-close" onClick={() => dismiss(item.id)} aria-label={t('common.close')}>
             <X size={14} />
           </button>
         </div>

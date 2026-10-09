@@ -1,10 +1,22 @@
+import { currentLang, D } from './i18n'
+
+const tr = (k: string, n?: number) => {
+  const e = D[k]
+  const base = e ? (currentLang === 'vi' ? e[0] : e[1]) : k
+  return n === undefined ? base : base.split('{n}').join(String(n))
+}
+
+let regionLang: string | null = null
 let regionNames: Intl.DisplayNames | null = null
 
 /** "VN" → "Việt Nam". Trả lại mã nếu không dịch được. */
 export function countryName(code: string | null | undefined): string {
   if (!code) return ''
   try {
-    regionNames ??= new Intl.DisplayNames(['vi'], { type: 'region' })
+    if (!regionNames || regionLang !== currentLang) {
+      regionLang = currentLang
+      regionNames = new Intl.DisplayNames([currentLang], { type: 'region' })
+    }
     return regionNames.of(code.toUpperCase()) ?? code
   } catch {
     return code
@@ -28,10 +40,10 @@ export function formatDate(iso: string | null): string {
 
 export function timeAgo(iso: string): string {
   const min = Math.round((Date.now() - Date.parse(iso)) / 60000)
-  if (min < 1) return 'vừa xong'
-  if (min < 60) return `${min} phút trước`
+  if (min < 1) return tr('time.now')
+  if (min < 60) return tr('time.min', min)
   const h = Math.round(min / 60)
-  return h < 48 ? `${h} giờ trước` : `${Math.round(h / 24)} ngày trước`
+  return h < 48 ? tr('time.hour', h) : tr('time.day', Math.round(h / 24))
 }
 
 /** Màu ổn định theo chuỗi, dùng cho badge nền tảng. */

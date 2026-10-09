@@ -1,4 +1,5 @@
 // Toast đơn giản dùng chung cho cả app, phát qua một event bus trong bộ nhớ.
+import { currentLang, D } from './i18n'
 export type ToastKind = 'info' | 'success' | 'error'
 export interface ToastItem {
   id: number
@@ -17,7 +18,12 @@ export function toast(text: string, kind: ToastKind = 'info'): void {
 
 /** Dùng cho các nút giao diện đã dựng nhưng chức năng chưa làm. */
 export function notYet(feature?: string): void {
-  toast(feature ? `"${feature}" — tính năng chưa phát triển.` : 'Tính năng này chưa phát triển.', 'info')
+  const pick = (k: string) => {
+    const e = D[k]
+    return e ? (currentLang === 'vi' ? e[0] : e[1]) : k
+  }
+  const text = feature ? pick('toast.notYet').split('{f}').join(feature) : pick('toast.notYetGeneric')
+  toast(text, 'info')
 }
 
 export function subscribeToasts(l: Listener): () => void {

@@ -4,7 +4,8 @@ import { Download, Hammer, RefreshCw, Search, Settings, Tag, Trash2, Upload } fr
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DownloadProgress, GeoStatus, Proxy } from '../../shared/types'
 import { runBatch } from '../lib/batch'
-import { countryName } from '../lib/format'
+import { countryName, timeAgo } from '../lib/format'
+import { useI18n } from '../lib/i18n'
 import { call, isola } from '../lib/isola'
 import { notYet } from '../lib/toast'
 import ProxyEditor from './ProxyEditor'
@@ -12,25 +13,18 @@ import ProxyImportDialog from './ProxyImportDialog'
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(0)} MB`
 
-function ago(iso: string): string {
-  const min = Math.round((Date.now() - Date.parse(iso)) / 60000)
-  if (min < 1) return 'vừa xong'
-  if (min < 60) return `${min} phút trước`
-  const h = Math.round(min / 60)
-  return h < 48 ? `${h} giờ trước` : `${Math.round(h / 24)} ngày trước`
-}
-
 type SubTab = 'list' | 'rotating' | 'provider' | 'resources'
-const SUBTABS: { id: SubTab; label: string }[] = [
-  { id: 'list', label: 'Danh sách' },
-  { id: 'rotating', label: 'Proxy xoay' },
-  { id: 'provider', label: 'Nhà cung cấp' },
-  { id: 'resources', label: 'Tài nguyên' }
+const SUBTABS: { id: SubTab; key: string }[] = [
+  { id: 'list', key: 'subtab.list' },
+  { id: 'rotating', key: 'subtab.rotating' },
+  { id: 'provider', key: 'subtab.provider' },
+  { id: 'resources', key: 'subtab.resources' }
 ]
 
 type Category = 'all' | 'static' | 'datacenter' | 'imported'
 
 export default function ProxiesPage() {
+  const { t } = useI18n()
   const [subtab, setSubtab] = useState<SubTab>('list')
   const [proxies, setProxies] = useState<Proxy[]>([])
   const [geo, setGeo] = useState<GeoStatus | null>(null)
@@ -110,10 +104,10 @@ export default function ProxiesPage() {
     const list = proxies.filter((p) => ids.includes(p.id))
     const blocked = list.filter((p) => !deletable(p))
     if (blocked.length) {
-      setError(`${blocked.length} proxy đang gán cho profile, không xóa được. Gỡ khỏi profile trước.`)
+      setError(t('proxies.blockedDelete', { n: blocked.length }))
       return
     }
-    if (!confirm(`Xóa ${list.length} proxy?`)) return
+    if (!confirm(t('proxies.confirmDelete', { n: list.length }))) return
     withBusy(ids, async () => {
       setError(await runBatch(list, (p) => p.label, (p) => call(isola().proxies.remove(p.id))))
       await reload()
@@ -148,23 +142,21 @@ export default function ProxiesPage() {
         <div className="subtabs">
           {SUBTABS.map((s) => (
             <button key={s.id} className={`subtab${subtab === s.id ? ' active' : ''}`} onClick={() => setSubtab(s.id)}>
-              {s.label}
+              {t(s.key)}
             </button>
           ))}
         </div>
 
-        {subtab === 'rotating' && comingSoon('Proxy xoay', 'Quản lý proxy xoay theo phiên. Tính năng chưa phát triển.')}
-        {subtab === 'provider' &&
-          comingSoon('Nhà cung cấp proxy', 'Kết nối nhà cung cấp để mua và đồng bộ proxy. Tính năng chưa phát triển.')}
-        {subtab === 'resources' && comingSoon('Tài nguyên', 'Hướng dẫn và tài nguyên về proxy. Tính năng chưa phát triển.')}
+        {subtab === 'rotating' && comingSoon(t('proxies.rotating.title'), t('proxies.rotating.desc'))}
+        {subtab === 'provider' && comingSoon(t('proxies.provider.title'), t('proxies.provider.desc'))}
+        {subtab === 'resources' && comingSoon(t('proxies.resources.title'), t('proxies.resources.desc'))}
 
         {subtab === 'list' && (
           <>
             {geo && !geo.installed && (
               <div className="note" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ flex: 1 }}>
-                  Chưa có dữ liệu GeoIP. Cần nó để biết quốc gia và timezone của proxy (tra offline, khoảng 60 MB).
-                  Profile production chỉ mở được khi proxy có timezone.
+                  {t('proxies.geoNote')}
                 </span>
                 {geoBusy && geoProgress && geoProgress.totalBytes > 0 ? (
                   <span className="status">
@@ -175,7 +167,7 @@ export default function ProxiesPage() {
                   </span>
                 ) : (
                   <button className="primary" disabled={geoBusy} onClick={installGeo}>
-                    {geoBusy ? 'Đang tải…' : 'Tải GeoIP'}
+                    {geoBusy ? t('common.loading') : t('proxies.downloadGeo')}
                   </button>
                 )}
               </div>
@@ -187,43 +179,43 @@ export default function ProxiesPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm theo nhãn, host, IP, quốc gia"
+                  placeholder={t('proxies.searchPh')}
                 />
               </div>
               <button className="primary" onClick={() => setEditing('new')}>
-                Thêm proxy
+                {t('proxies.add')}
               </button>
               <button onClick={() => setImportOpen(true)}>
                 <Download size={15} /> Import
               </button>
-              <button onClick={() => notYet('Xuất proxy')}>
+              <button onClick={() => notYet(t('proxies.exportProxy'))}>
                 <Upload size={15} /> Export
               </button>
               <button disabled={proxies.length === 0} onClick={() => testIds(filtered.map((p) => p.id))}>
-                Kiểm tra tất cả
+                {t('proxies.checkAll')}
               </button>
               <div className="spacer" />
-              <button className="icon" title="Gắn thẻ" onClick={() => notYet('Gắn thẻ proxy')}>
+              <button className="icon" title={t('proxies.tag')} onClick={() => notYet(t('proxies.tagProxy'))}>
                 <Tag size={15} />
               </button>
-              <button className="icon" title="Cài đặt proxy" onClick={() => notYet('Cài đặt proxy')}>
+              <button className="icon" title={t('proxies.settings')} onClick={() => notYet(t('proxies.settings'))}>
                 <Settings size={15} />
               </button>
-              <button className="icon" title="Tải lại" onClick={reload}>
+              <button className="icon" title={t('common.reload')} onClick={reload}>
                 <RefreshCw size={15} />
               </button>
             </div>
 
             <div className="toolbar" style={{ marginTop: -4 }}>
               <button className="soft" disabled={selected.size === 0} onClick={() => testIds([...selected])}>
-                Kiểm tra đã chọn ({selected.size})
+                {t('proxies.checkSelected', { n: selected.size })}
               </button>
               <button disabled={selected.size === 0} onClick={() => removeMany([...selected])}>
-                <Trash2 size={15} /> Xóa
+                <Trash2 size={15} /> {t('common.delete')}
               </button>
               {selected.size > 0 && (
                 <button className="link" onClick={() => setSelected(new Set())}>
-                  Bỏ chọn
+                  {t('common.deselect')}
                 </button>
               )}
             </div>
@@ -231,10 +223,10 @@ export default function ProxiesPage() {
             <div className="chipbar">
               {(
                 [
-                  ['all', `Tất cả (${counts.all})`],
-                  ['static', `Static ISP (${counts.static})`],
-                  ['datacenter', `Datacenter (${counts.datacenter})`],
-                  ['imported', `Đã nhập (${counts.imported})`]
+                  ['all', t('proxies.catAll', { n: counts.all })],
+                  ['static', t('proxies.catStatic', { n: counts.static })],
+                  ['datacenter', t('proxies.catDatacenter', { n: counts.datacenter })],
+                  ['imported', t('proxies.catImported', { n: counts.imported })]
                 ] as [Category, string][]
               ).map(([id, label]) => (
                 <button key={id} className={`chip-tab${category === id ? ' active' : ''}`} onClick={() => setCategory(id)}>
@@ -270,12 +262,12 @@ export default function ProxiesPage() {
                       />
                     </th>
                     <th>Proxy</th>
-                    <th>Loại</th>
-                    <th>IP ra / vị trí</th>
-                    <th>Độ trễ</th>
+                    <th>{t('proxies.colType')}</th>
+                    <th>{t('proxies.colIpLoc')}</th>
+                    <th>{t('proxies.colLatency')}</th>
                     <th>Profile</th>
                     <th className="sticky-right" style={{ textAlign: 'right' }}>
-                      Thao tác
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -298,19 +290,19 @@ export default function ProxiesPage() {
                         <td className="muted">{p.type}</td>
                         <td className="wrap">
                           {isBusy ? (
-                            <span className="muted">Đang kiểm…</span>
+                            <span className="muted">{t('proxies.checking')}</span>
                           ) : !c ? (
-                            <span className="muted">Chưa kiểm</span>
+                            <span className="muted">{t('proxies.notChecked')}</span>
                           ) : c.error ? (
                             <>
-                              <span className="status down">Lỗi</span>
+                              <span className="status down">{t('proxies.errLabel')}</span>
                               <div className="muted small-text">{c.error}</div>
                             </>
                           ) : (
                             <>
                               <span className="status running">{c.ip}</span>
                               <div className="muted small-text">
-                                {[c.country && `${c.country} - ${countryName(c.country)}`, c.city, c.timezone ?? 'chưa rõ timezone']
+                                {[c.country && `${c.country} - ${countryName(c.country)}`, c.city, c.timezone ?? t('proxies.noTz')]
                                   .filter(Boolean)
                                   .join(' · ')}
                               </div>
@@ -319,11 +311,11 @@ export default function ProxiesPage() {
                         </td>
                         <td>
                           {c?.latencyMs != null ? `${c.latencyMs} ms` : <span className="muted">—</span>}
-                          {c && <div className="muted small-text">{ago(c.at)}</div>}
+                          {c && <div className="muted small-text">{timeAgo(c.at)}</div>}
                         </td>
                         <td>
                           {p.profileCount > 1 ? (
-                            <span title="Nhiều profile dùng chung một IP" className="tag warn">
+                            <span title={t('proxies.sharedIp')} className="tag warn">
                               {p.profileCount}
                             </span>
                           ) : (
@@ -333,23 +325,23 @@ export default function ProxiesPage() {
                         <td className="actions">
                           <div>
                             <button className="small" disabled={isBusy} onClick={() => testOne(p.id)}>
-                              Kiểm tra
+                              {t('common.check')}
                             </button>
                             {p.refreshUrl && (
                               <button className="small" disabled={isBusy} onClick={() => refreshIp(p.id)}>
-                                Đổi IP
+                                {t('proxies.changeIp')}
                               </button>
                             )}
                             <button className="small" disabled={isBusy} onClick={() => setEditing(p)}>
-                              Sửa
+                              {t('common.edit')}
                             </button>
                             <button
                               className="small danger"
                               disabled={isBusy || !deletable(p)}
-                              title={!deletable(p) ? 'Đang gán cho profile' : undefined}
+                              title={!deletable(p) ? t('proxies.inUse') : undefined}
                               onClick={() => removeMany([p.id])}
                             >
-                              Xóa
+                              {t('common.delete')}
                             </button>
                           </div>
                         </td>
@@ -361,17 +353,17 @@ export default function ProxiesPage() {
               {filtered.length === 0 && (
                 <div className="empty">
                   {category === 'static' || category === 'datacenter'
-                    ? 'Chưa phân loại proxy theo nhóm này.'
+                    ? t('proxies.emptyUncat')
                     : proxies.length === 0
-                      ? 'Chưa có proxy. Bấm "Thêm proxy" hoặc "Import".'
-                      : 'Không có proxy khớp bộ lọc.'}
+                      ? t('proxies.emptyNone')
+                      : t('proxies.emptyFilter')}
                 </div>
               )}
             </div>
 
             {geo?.installed && (
               <p className="muted small-text" style={{ marginTop: 12 }}>
-                Dữ liệu GeoIP {geo.version} · IP geolocation by <span title="https://db-ip.com">DB-IP</span> (CC BY 4.0)
+                {t('proxies.geoCredit', { v: geo.version ?? '' })}
               </p>
             )}
           </>

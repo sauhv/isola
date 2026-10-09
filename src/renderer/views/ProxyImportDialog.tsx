@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ProxyImportResult, ProxyType } from '../../shared/types'
+import { useI18n } from '../lib/i18n'
 import { call, isola } from '../lib/isola'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function ProxyImportDialog({ onClose, onImported }: Props) {
+  const { t } = useI18n()
   const [text, setText] = useState('')
   const [type, setType] = useState<ProxyType>('http')
   const [result, setResult] = useState<ProxyImportResult | null>(null)
@@ -36,11 +38,11 @@ export default function ProxyImportDialog({ onClose, onImported }: Props) {
   return (
     <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog">
-        <h2>Import proxy</h2>
+        <h2>{t('proxyimport.title')}</h2>
         {error && <div className="error-bar">{error}</div>}
         <div className="form">
           <label className="field">
-            <span>Mỗi dòng một proxy (tối đa 500)</span>
+            <span>{t('proxyimport.lines')}</span>
             <textarea
               rows={10}
               value={text}
@@ -51,7 +53,7 @@ export default function ProxyImportDialog({ onClose, onImported }: Props) {
             />
           </label>
           <label className="field" style={{ width: 260 }}>
-            <span>Loại mặc định (khi dòng không ghi giao thức)</span>
+            <span>{t('proxyimport.defaultType')}</span>
             <select value={type} onChange={(e) => setType(e.target.value as ProxyType)}>
               <option value="http">HTTP</option>
               <option value="https">HTTPS</option>
@@ -60,15 +62,15 @@ export default function ProxyImportDialog({ onClose, onImported }: Props) {
           </label>
           {result && (
             <div className={result.errors.length ? 'note' : 'ok-bar'}>
-              Đã thêm {result.created} proxy.
+              {t('proxyimport.added', { n: result.created })}
               {result.errors.length > 0 && (
                 <>
                   {' '}
-                  {result.errors.length} dòng bị bỏ qua:
+                  {t('proxyimport.skipped', { n: result.errors.length })}
                   <ul style={{ margin: '6px 0 0', paddingLeft: 18, maxHeight: 120, overflow: 'auto' }}>
                     {result.errors.map((e) => (
                       <li key={e.line}>
-                        Dòng {e.line}: {e.reason}
+                        {t('proxyimport.line', { n: e.line, r: e.reason })}
                       </li>
                     ))}
                   </ul>
@@ -78,9 +80,9 @@ export default function ProxyImportDialog({ onClose, onImported }: Props) {
           )}
         </div>
         <div className="dialog-actions">
-          <button onClick={onClose}>Đóng</button>
+          <button onClick={onClose}>{t('common.close')}</button>
           <button className="primary" disabled={busy || lines === 0} onClick={submit}>
-            {busy ? 'Đang import…' : `Import ${lines} dòng`}
+            {busy ? t('proxyimport.importing') : t('proxyimport.importN', { n: lines })}
           </button>
         </div>
       </div>

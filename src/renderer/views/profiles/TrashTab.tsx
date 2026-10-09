@@ -5,11 +5,13 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Profile } from '../../../shared/types'
 import { runBatch } from '../../lib/batch'
 import { formatDate } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 
 const PURGE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
 
 export default function TrashTab() {
+  const { t } = useI18n()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -36,7 +38,7 @@ export default function TrashTab() {
 
   const restore = (list: Profile[]) => bulk(list, (p) => call(isola().profiles.restore(p.id)))
   const purge = (list: Profile[]) => {
-    if (!confirm(`Xóa vĩnh viễn ${list.length} profile cùng toàn bộ dữ liệu trình duyệt (cookie, đăng nhập, dữ liệu extension)? Không hoàn tác được.`))
+    if (!confirm(t('trash.confirmPurge', { n: list.length })))
       return
     bulk(list, (p) => call(isola().profiles.purge(p.id, true)))
   }
@@ -48,12 +50,12 @@ export default function TrashTab() {
     <>
       <div className="toolbar">
         <button disabled={busy || chosen.length === 0} onClick={() => restore(chosen)}>
-          <RotateCcw size={15} /> Khôi phục
+          <RotateCcw size={15} /> {t('common.restore')}
         </button>
         <button className="danger" disabled={busy || chosen.length === 0} onClick={() => purge(chosen)}>
-          <Trash2 size={15} /> Xóa vĩnh viễn
+          <Trash2 size={15} /> {t('common.purge')}
         </button>
-        <span className="muted">Profile trong thùng rác giữ nguyên dữ liệu trình duyệt cho tới khi xóa vĩnh viễn.</span>
+        <span className="muted">{t('trash.note')}</span>
       </div>
 
       {error && <div className="error-bar">{error}</div>}
@@ -69,13 +71,13 @@ export default function TrashTab() {
                   onChange={() => setSelected(all ? new Set() : new Set(profiles.map((p) => p.id)))}
                 />
               </th>
-              <th>Số</th>
+              <th>{t('common.no')}</th>
               <th>ID</th>
-              <th>Tên</th>
-              <th>Nhóm</th>
-              <th>Đưa vào thùng rác</th>
-              <th>Tự xóa được từ</th>
-              <th style={{ textAlign: 'right' }}>Thao tác</th>
+              <th>{t('common.name')}</th>
+              <th>{t('common.group')}</th>
+              <th>{t('trash.colTrashed')}</th>
+              <th>{t('trash.colAutoPurge')}</th>
+              <th style={{ textAlign: 'right' }}>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -108,10 +110,10 @@ export default function TrashTab() {
                 <td className="actions">
                   <div>
                     <button className="small" disabled={busy} onClick={() => restore([p])}>
-                      <RotateCcw size={13} /> Khôi phục
+                      <RotateCcw size={13} /> {t('common.restore')}
                     </button>
                     <button className="small danger" disabled={busy} onClick={() => purge([p])}>
-                      <Trash2 size={13} /> Xóa vĩnh viễn
+                      <Trash2 size={13} /> {t('common.purge')}
                     </button>
                   </div>
                 </td>
@@ -119,7 +121,7 @@ export default function TrashTab() {
             ))}
           </tbody>
         </table>
-        {profiles.length === 0 && <div className="empty">Thùng rác trống.</div>}
+        {profiles.length === 0 && <div className="empty">{t('trash.empty')}</div>}
       </div>
     </>
   )

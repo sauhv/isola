@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { KernelInfo, KernelProgress } from '../../shared/types'
+import { useI18n } from '../lib/i18n'
 import { call, isola } from '../lib/isola'
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(0)} MB`
 
 export default function KernelsPage() {
+  const { t } = useI18n()
   const [kernels, setKernels] = useState<KernelInfo[]>([])
   const [progress, setProgress] = useState<Record<string, KernelProgress>>({})
   const [installing, setInstalling] = useState<Set<string>>(new Set())
@@ -44,18 +46,15 @@ export default function KernelsPage() {
         <h1 className="page-title">Kernel</h1>
       </div>
       <div className="panel pad">
-      <p className="note">
-        Kernel là Chrome for Testing ghim phiên bản, tải từ máy chủ chính thức của Google. Không tự cập nhật, không
-        có Widevine (trang dùng DRM như Netflix sẽ không phát), không đăng nhập Google Sync.
-      </p>
+      <p className="note">{t('kernel.note')}</p>
       {error && <div className="error-bar">{error}</div>}
       <div className="table-wrap" style={{ marginTop: 12 }}>
         <table>
           <thead>
             <tr>
               <th>Kernel</th>
-              <th>Phiên bản</th>
-              <th>Trạng thái</th>
+              <th>{t('common.version')}</th>
+              <th>{t('common.status')}</th>
               <th />
             </tr>
           </thead>
@@ -69,7 +68,7 @@ export default function KernelsPage() {
                   <td className="muted">{k.buildId}</td>
                   <td>
                     {k.installed ? (
-                      <span className="status running">Đã tải</span>
+                      <span className="status running">{t('kernel.installed')}</span>
                     ) : busy && p && p.totalBytes > 0 ? (
                       <span className="status">
                         <span className="progress">
@@ -78,13 +77,13 @@ export default function KernelsPage() {
                         {mb(p.downloadedBytes)} / {mb(p.totalBytes)}
                       </span>
                     ) : (
-                      <span className="status">{busy ? 'Đang tải…' : 'Chưa tải'}</span>
+                      <span className="status">{busy ? t('kernel.downloading') : t('kernel.notInstalled')}</span>
                     )}
                   </td>
                   <td className="actions">
                     {!k.installed && (
                       <button className="small primary" disabled={busy} onClick={() => installKernel(k.id)}>
-                        Tải
+                        {t('kernel.download')}
                       </button>
                     )}
                   </td>

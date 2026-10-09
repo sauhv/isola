@@ -4,9 +4,11 @@ import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Group } from '../../../shared/types'
 import { formatDate } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 
 export default function GroupsTab() {
+  const { t } = useI18n()
   const [groups, setGroups] = useState<Group[]>([])
   const [newName, setNewName] = useState('')
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
@@ -48,12 +50,12 @@ export default function GroupsTab() {
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="Tên nhóm mới"
+          placeholder={t('groups.newName')}
           maxLength={100}
           style={{ width: 280 }}
         />
         <button type="submit" className="primary" disabled={!newName.trim()}>
-          <Plus size={15} /> Thêm nhóm
+          <Plus size={15} /> {t('groups.add')}
         </button>
       </form>
 
@@ -63,10 +65,10 @@ export default function GroupsTab() {
         <table>
           <thead>
             <tr>
-              <th>Tên nhóm</th>
-              <th>Số profile</th>
-              <th>Ngày tạo</th>
-              <th style={{ textAlign: 'right' }}>Thao tác</th>
+              <th>{t('groups.colName')}</th>
+              <th>{t('groups.colCount')}</th>
+              <th>{t('groups.colCreated')}</th>
+              <th style={{ textAlign: 'right' }}>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +97,7 @@ export default function GroupsTab() {
                     {renaming?.id === g.id ? (
                       <>
                         <button className="small primary" onClick={saveRename} disabled={!renaming.name.trim()}>
-                          <Check size={14} /> Lưu
+                          <Check size={14} /> {t('common.save')}
                         </button>
                         <button className="small" onClick={() => setRenaming(null)}>
                           <X size={14} />
@@ -103,17 +105,17 @@ export default function GroupsTab() {
                       </>
                     ) : (
                       <button className="small" onClick={() => setRenaming({ id: g.id, name: g.name })}>
-                        <Pencil size={13} /> Đổi tên
+                        <Pencil size={13} /> {t('common.rename')}
                       </button>
                     )}
                     <button
                       className="small danger"
                       onClick={() => {
-                        if (confirm(`Xóa nhóm "${g.name}"? ${g.profileCount} profile trong nhóm chuyển về "Không nhóm".`))
+                        if (confirm(t('groups.confirmDelete', { name: g.name, n: g.profileCount })))
                           act(() => call(isola().groups.remove(g.id)))
                       }}
                     >
-                      <Trash2 size={13} /> Xóa
+                      <Trash2 size={13} /> {t('common.delete')}
                     </button>
                   </div>
                 </td>
@@ -121,7 +123,7 @@ export default function GroupsTab() {
             ))}
           </tbody>
         </table>
-        {groups.length === 0 && <div className="empty">Chưa có nhóm.</div>}
+        {groups.length === 0 && <div className="empty">{t('groups.empty')}</div>}
       </div>
     </>
   )

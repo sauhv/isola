@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { Group, Profile } from '../../../shared/types'
 import { runBatch } from '../../lib/batch'
+import { useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function MoveGroupDialog({ profiles, groups, onClose, onDone }: Props) {
+  const { t } = useI18n()
   const [groupId, setGroupId] = useState(profiles.length === 1 ? (profiles[0].groupId ?? '') : '')
   const [saving, setSaving] = useState(false)
 
@@ -30,11 +32,11 @@ export default function MoveGroupDialog({ profiles, groups, onClose, onDone }: P
   return (
     <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog" style={{ width: 420 }}>
-        <h2>Chuyển {profiles.length === 1 ? `"${profiles[0].name}"` : `${profiles.length} profile`} sang nhóm</h2>
+        <h2>{profiles.length === 1 ? t('move.titleOne', { name: profiles[0].name }) : t('move.titleN', { n: profiles.length })}</h2>
         <label className="field">
-          <span>Nhóm đích</span>
+          <span>{t('move.target')}</span>
           <select value={groupId} onChange={(e) => setGroupId(e.target.value)} autoFocus>
-            <option value="">Không nhóm</option>
+            <option value="">{t('common.noGroup')}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -43,9 +45,9 @@ export default function MoveGroupDialog({ profiles, groups, onClose, onDone }: P
           </select>
         </label>
         <div className="dialog-actions">
-          <button onClick={onClose}>Hủy</button>
+          <button onClick={onClose}>{t('common.cancel')}</button>
           <button className="primary" disabled={saving} onClick={save}>
-            Chuyển
+            {t('move.action')}
           </button>
         </div>
       </div>
