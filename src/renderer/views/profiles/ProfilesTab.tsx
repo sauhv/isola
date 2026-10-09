@@ -7,8 +7,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Boxes,
+  Cookie,
   Copy,
   CopyPlus,
+  LayoutGrid,
   FolderInput,
   Loader2,
   MapPin,
@@ -29,7 +31,7 @@ import Menu from '../../components/Menu'
 import { runBatch } from '../../lib/batch'
 import { colorFor, countryName, dateTimeParts } from '../../lib/format'
 import { call, isola } from '../../lib/isola'
-import { notYet } from '../../lib/toast'
+import { notYet, toast } from '../../lib/toast'
 import BulkCreateDialog from './BulkCreateDialog'
 import MoveGroupDialog from './MoveGroupDialog'
 
@@ -173,6 +175,17 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         (p) => call(isola().profiles.start(p.id))
       )
     )
+  const arrange = () =>
+    bulk(async () => {
+      const n = await call(isola().profiles.arrangeWindows([...selected]))
+      toast(n ? `Đã sắp ${n} cửa sổ.` : 'Không có profile đang chạy để sắp.', n ? 'success' : 'info')
+      return null
+    })
+  const exportCookies = (p: Profile) =>
+    single(p.id, async () => {
+      const r = await call(isola().profiles.exportCookies(p.id))
+      if (r.saved) toast(`Đã xuất ${r.count} cookie.`, 'success')
+    })
   const closeMany = () =>
     bulk(() =>
       runBatch(
@@ -246,6 +259,9 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
           onClick={() => trashMany(selectedProfiles)}
         >
           <Trash2 size={15} />
+        </button>
+        <button disabled={bulkBusy || runningCount === 0} title="Sắp cửa sổ profile đang chạy thành lưới" onClick={arrange}>
+          <LayoutGrid size={15} /> Sắp cửa sổ
         </button>
         {selected.size > 0 && (
           <span className="muted" style={{ marginLeft: 4 }}>
@@ -419,6 +435,12 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                             label: 'Nhân bản',
                             icon: <CopyPlus size={14} />,
                             onClick: () => single(p.id, () => call(isola().profiles.clone(p.id)).then(reload))
+                          },
+                          {
+                            label: 'Xuất cookie',
+                            icon: <Cookie size={14} />,
+                            disabled: !running,
+                            onClick: () => exportCookies(p)
                           },
                           { label: 'Chuyển nhóm', icon: <FolderInput size={14} />, onClick: () => setMoving([p]) },
                           {

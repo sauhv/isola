@@ -11,6 +11,8 @@ export const Channels = {
   profilesSetFingerprint: 'profiles:set-fingerprint',
   profilesClone: 'profiles:clone',
   profilesCreateMany: 'profiles:create-many',
+  profilesArrange: 'profiles:arrange',
+  profilesExportCookies: 'profiles:export-cookies',
   fingerprintsCatalog: 'fingerprints:catalog',
   fingerprintsPreview: 'fingerprints:preview',
   proxiesTestDraft: 'proxies:test-draft',

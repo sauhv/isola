@@ -23,7 +23,9 @@ const api: IsolaApi = {
     stop: (id) => invoke(Channels.profilesStop, id),
     setFingerprint: (id, fp) => invoke(Channels.profilesSetFingerprint, id, fp),
     clone: (id) => invoke(Channels.profilesClone, id),
-    createMany: (input) => invoke(Channels.profilesCreateMany, input)
+    createMany: (input) => invoke(Channels.profilesCreateMany, input),
+    arrangeWindows: (ids) => invoke(Channels.profilesArrange, ids),
+    exportCookies: (id) => invoke(Channels.profilesExportCookies, id)
   },
   fingerprints: {
     catalog: () => invoke(Channels.fingerprintsCatalog),

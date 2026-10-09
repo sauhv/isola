@@ -264,6 +264,10 @@ export interface IsolaApi {
     clone(id: string): Promise<Result<Profile>>
     /** Tạo nhiều profile theo mẫu. */
     createMany(input: BulkCreateInput): Promise<Result<BulkCreateResult>>
+    /** Sắp cửa sổ các profile đang chạy thành lưới (ids rỗng = tất cả). */
+    arrangeWindows(ids: string[]): Promise<Result<number>>
+    /** Xuất cookie của profile đang chạy ra file JSON. */
+    exportCookies(id: string): Promise<Result<{ saved: boolean; count: number }>>
   }
   fingerprints: {
     catalog(): Promise<Result<CatalogOption[]>>

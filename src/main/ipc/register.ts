@@ -1,4 +1,5 @@
-import { dialog, ipcMain, type BrowserWindow, type OpenDialogOptions } from 'electron'
+import { dialog, ipcMain, screen, type BrowserWindow, type OpenDialogOptions } from 'electron'
+import { writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
 import { IsolaError } from '../errors'
@@ -182,6 +183,20 @@ export function registerIpc(s: Services): void {
   handle(Channels.profilesSetFingerprint, [id, fingerprintInput], (pid, fp) => s.profiles.setFingerprint(pid, fp as never))
   handle(Channels.profilesClone, [id], (pid) => s.profiles.clone(pid))
   handle(Channels.profilesCreateMany, [bulkCreateInput], (input) => s.profiles.createMany(input))
+  handle(Channels.profilesArrange, [z.array(id).max(1000)], async (ids) => {
+    const area = screen.getPrimaryDisplay().workAreaSize
+    return s.launcher.arrangeWindows(ids, area)
+  })
+  handle(Channels.profilesExportCookies, [id], async (pid) => {
+    const cookies = await s.launcher.exportCookies(pid)
+    const safe = s.profiles.get(pid).name.replace(/[^w.-]+/g, '_').slice(0, 40)
+    const win = s.window()
+    const opts = { defaultPath: `cookies-${safe}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] }
+    const res = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (res.canceled || !res.filePath) return { saved: false, count: cookies.length }
+    writeFileSync(res.filePath, JSON.stringify(cookies, null, 2))
+    return { saved: true, count: cookies.length }
+  })
   handle(Channels.fingerprintsCatalog, [], () =>
     compatibleEntries(s.profiles.host).map((e) => ({ id: e.id, label: e.label, os: e.os, gpuVendor: e.gpuVendor }))
   )

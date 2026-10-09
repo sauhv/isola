@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import type { ProfileStatusEvent } from '../../shared/types'
 import type { Db } from '../db'
+import type { CookieParam } from '../engine/cookies'
 import { CdpPipe } from '../engine/cdpPipe'
 import { FingerprintController } from '../engine/fingerprintApply'
 import { findSupportedKernel } from '../engine/kernels'
@@ -249,6 +250,46 @@ export class LaunchService extends EventEmitter {
 
   async stopAll(): Promise<void> {
     await Promise.all([...this.running.keys()].map((id) => this.stop(id)))
+  }
+
+  /** Xuất cookie của profile đang chạy (qua CDP). Audit cookie_export. */
+  async exportCookies(id: string): Promise<CookieParam[]> {
+    const { cookies } = await this.cdp(id).send<{ cookies: CookieParam[] }>('Storage.getCookies')
+    audit(this.db, 'cookie_export', id, { count: cookies.length })
+    return cookies
+  }
+
+  /**
+   * Sắp các cửa sổ profile đang chạy thành lưới trong vùng làm việc cho trước.
+   * ids rỗng = mọi profile đang chạy. Trả số cửa sổ đã sắp.
+   */
+  async arrangeWindows(ids: string[], area: { width: number; height: number }): Promise<number> {
+    const list = (ids.length ? ids.filter((id) => this.isRunning(id)) : [...this.running.keys()])
+    if (list.length === 0) return 0
+    const cols = Math.ceil(Math.sqrt(list.length))
+    const rows = Math.ceil(list.length / cols)
+    const w = Math.max(320, Math.floor(area.width / cols))
+    const h = Math.max(240, Math.floor(area.height / rows))
+    let placed = 0
+    for (const id of list) {
+      const cdp = this.running.get(id)?.cdp
+      if (!cdp) continue
+      try {
+        const { targetInfos } = await cdp.send<{ targetInfos: { type: string; targetId: string }[] }>('Target.getTargets')
+        const pageTarget = targetInfos.find((t) => t.type === 'page')
+        if (!pageTarget) continue
+        const { windowId } = await cdp.send<{ windowId: number }>('Browser.getWindowForTarget', { targetId: pageTarget.targetId })
+        const col = placed % cols
+        const row = Math.floor(placed / cols)
+        // Bỏ maximize trước rồi mới đặt kích thước.
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }).catch(() => {})
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { left: col * w, top: row * h, width: w, height: h } })
+        placed++
+      } catch {
+        // cửa sổ có thể đã đóng; bỏ qua
+      }
+    }
+    return placed
   }
 
   private emitStatus(e: ProfileStatusEvent): void {
