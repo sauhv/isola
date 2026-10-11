@@ -167,4 +167,25 @@ describe('profileService nhân bản & tạo hàng loạt (Phase 5)', () => {
     expect(names).toContain('Acc 3')
     expect(new Set(names).size).toBe(names.length)
   })
+
+  it('cleanupOrphans: xóa thư mục UUID không còn trong DB, giữ profile thật và thư mục lạ', () => {
+    const p = svc.create({ name: 'Giữ' })
+    mkdirSync(paths.userData(dataRoot, p.id), { recursive: true }) // profile thật có user-data
+    const orphan = '0899766d-cb17-4a19-8e97-2af25714b216'
+    mkdirSync(join(dataRoot, 'profiles', orphan), { recursive: true }) // mồ côi (không trong DB)
+    mkdirSync(join(dataRoot, 'profiles', 'khong-phai-uuid'), { recursive: true }) // tên lạ, không đụng
+
+    expect(svc.cleanupOrphans()).toBe(1)
+    expect(existsSync(join(dataRoot, 'profiles', orphan))).toBe(false)
+    expect(existsSync(paths.profile(dataRoot, p.id))).toBe(true)
+    expect(existsSync(join(dataRoot, 'profiles', 'khong-phai-uuid'))).toBe(true)
+  })
+
+  it('cleanupOrphans: giữ thư mục của profile đã lưu trữ', () => {
+    const p = svc.create({ name: 'Lưu trữ' })
+    mkdirSync(paths.profile(dataRoot, p.id), { recursive: true })
+    svc.archive(p.id)
+    expect(svc.cleanupOrphans()).toBe(0)
+    expect(existsSync(paths.profile(dataRoot, p.id))).toBe(true)
+  })
 })

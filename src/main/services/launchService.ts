@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { Readable, Writable } from 'node:stream'
 import type { ProfileStatusEvent } from '../../shared/types'
 import type { Db } from '../db'
@@ -10,7 +11,9 @@ import { CdpPipe } from '../engine/cdpPipe'
 import { FingerprintController } from '../engine/fingerprintApply'
 import { findSupportedKernel } from '../engine/kernels'
 import { Relay } from '../engine/relay'
-import { effectiveFingerprint } from '../engine/seed'
+import { effectiveFingerprint, type EffectiveFingerprint } from '../engine/seed'
+import { renderSelfCheckPage } from '../engine/selfCheckPage'
+import type { Profile } from '../../shared/types'
 import { IsolaError } from '../errors'
 import { paths } from '../paths'
 import { audit } from './audit'
@@ -111,6 +114,7 @@ export class LaunchService extends EventEmitter {
     try {
       let proxyTimezone: string | null = null
       let proxyCountry: string | null = null
+      let proxyIp: string | null = null
       if (profile.proxyId) {
         // Kết quả kiểm cũ hơn 6 giờ (hoặc lần trước lỗi) thì kiểm lại. Lỗi thì không spawn.
         let proxy = this.proxies.get(profile.proxyId)
@@ -119,6 +123,7 @@ export class LaunchService extends EventEmitter {
         if (!profile.lab && !proxy.lastCheck?.timezone) throw new IsolaError('PROXY_NO_TZ')
         proxyTimezone = proxy.lastCheck?.timezone ?? null
         proxyCountry = proxy.lastCheck?.country ?? null
+        proxyIp = proxy.lastCheck?.ip ?? null
         relay = await Relay.start(this.proxies.upstreamUrl(proxy.id))
       }
 
@@ -163,7 +168,11 @@ export class LaunchService extends EventEmitter {
               '--disable-quic'
             ]
           : []),
-        ...(extensionDirs.length ? [`--load-extension=${extensionDirs.join(',')}`] : []),
+        // Chrome ghi nhớ extension nạp bằng --load-extension vào Secure Preferences và cố nạp lại
+        // ở lần sau; nếu file đã bị gỡ sẽ bung hộp lỗi chặn. Khóa đúng tập hiện tại để bỏ qua bản cũ.
+        ...(extensionDirs.length
+          ? [`--disable-extensions-except=${extensionDirs.join(',')}`, `--load-extension=${extensionDirs.join(',')}`]
+          : ['--disable-extensions']),
         ...(this.options.extraArgs ?? []),
         // URL khởi động được mở sau khi fingerprint đã gắn (xem bên dưới), không đưa lên dòng lệnh.
         'about:blank'
@@ -189,19 +198,23 @@ export class LaunchService extends EventEmitter {
           pendingCookies = cookies.length
           this.cookies!.clear(id)
         }
-        if (profile.startUrls.length) {
-          const blankTabs = [...controller.pages.values()]
-          // Mở about:blank trước để kịp đăng ký script doc-start + override khi tab đang dừng,
-          // rồi mới điều hướng tới URL thật — nhờ vậy fingerprint áp trước cả script <head> của trang.
-          for (const url of profile.startUrls) {
-            const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' })
-            await controller.settled()
-            const sessionId = controller.sessionForTarget(targetId)
-            if (sessionId) await cdp.send('Page.navigate', { url }, sessionId)
-          }
+        // Trang tự kiểm luôn là tab đầu: điều hướng tab about:blank ban đầu tới file self-check.
+        const firstTarget = [...controller.pages.values()][0] as string | undefined
+        const selfCheckUrl = this.writeSelfCheck(id, profile, fp, { proxyIp, proxyCountry })
+        if (firstTarget) {
+          const sessionId = controller.sessionForTarget(firstTarget)
+          if (sessionId) await cdp.send('Page.navigate', { url: selfCheckUrl }, sessionId)
           await controller.settled()
-          for (const targetId of blankTabs) await cdp.send('Target.closeTarget', { targetId }).catch(() => {})
         }
+        // Mở about:blank trước để kịp đăng ký script doc-start + override khi tab đang dừng,
+        // rồi mới điều hướng tới URL thật — nhờ vậy fingerprint áp trước cả script <head> của trang.
+        for (const url of profile.startUrls) {
+          const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' })
+          await controller.settled()
+          const sessionId = controller.sessionForTarget(targetId)
+          if (sessionId) await cdp.send('Page.navigate', { url }, sessionId)
+        }
+        await controller.settled()
       } catch (err) {
         killTree(proc)
         throw err instanceof IsolaError ? err : new IsolaError('LAUNCH_FAILED', String(err))
@@ -250,6 +263,42 @@ export class LaunchService extends EventEmitter {
 
   async stopAll(): Promise<void> {
     await Promise.all([...this.running.keys()].map((id) => this.stop(id)))
+  }
+
+  /** Ghi trang tự kiểm vào thư mục profile và trả về file:// URL để mở làm tab đầu. */
+  private writeSelfCheck(
+    id: string,
+    profile: Profile,
+    fp: EffectiveFingerprint,
+    proxy: { proxyIp: string | null; proxyCountry: string | null }
+  ): string {
+    const kernel = findSupportedKernel(profile.kernel)
+    const d = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const startedAt = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    const html = renderSelfCheckPage({
+      name: profile.name,
+      group: profile.groupName,
+      serial: profile.serial,
+      id: profile.id,
+      platform: profile.platform,
+      username: profile.username,
+      lab: profile.lab,
+      notes: profile.notes,
+      proxy: profile.proxy ? { type: profile.proxy.type, host: profile.proxy.host, ip: proxy.proxyIp, country: proxy.proxyCountry } : null,
+      kernelMajor: kernel?.major ?? fp.seed.chromeMajor,
+      kernelVersion: fp.userAgentMetadata.fullVersion,
+      os: fp.userAgentMetadata.platform,
+      userAgent: fp.seed.userAgent,
+      timezone: fp.timezone,
+      language: fp.language,
+      screen: { width: fp.seed.screen.width, height: fp.seed.screen.height },
+      extensions: this.extensions?.listForProfile(id) ?? [],
+      startedAt
+    })
+    const file = join(paths.profile(this.dataRoot, id), 'isola-selfcheck.html')
+    writeFileSync(file, html)
+    return pathToFileURL(file).toString()
   }
 
   /** Xuất cookie của profile đang chạy (qua CDP). Audit cookie_export. */

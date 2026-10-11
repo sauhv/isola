@@ -66,6 +66,27 @@ export class ProxyService {
     return toProxy(this.row(id))
   }
 
+  /** Cấu hình proxy kèm password đã giải mã, để gói vào bundle .isola. Không ghi log. */
+  exportConfig(id: string): { label: string; type: ProxyType; host: string; port: number; username: string | null; password: string | null } {
+    const r = this.row(id)
+    return {
+      label: r.label,
+      type: r.type,
+      host: r.host,
+      port: r.port,
+      username: r.username,
+      password: r.password_enc ? this.secrets.decrypt(r.password_enc) : null
+    }
+  }
+
+  /** Tìm proxy trùng điểm đến (type/host/port/username) để không tạo trùng khi nhập bundle. null nếu chưa có. */
+  findByEndpoint(type: ProxyType, host: string, port: number, username: string | null): string | null {
+    const row = this.db
+      .prepare('SELECT id FROM proxies WHERE type = ? AND host = ? AND port = ? AND IFNULL(username, \'\') = ?')
+      .get(type, host.trim(), port, username ?? '') as { id: string } | undefined
+    return row?.id ?? null
+  }
+
   create(input: ProxyInput): Proxy {
     const id = randomUUID()
     this.db

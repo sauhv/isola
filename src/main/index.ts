@@ -4,6 +4,7 @@ import { join, normalize, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { openDatabase, type Db } from './db'
 import { registerIpc } from './ipc/register'
+import { initAutoUpdate } from './updater'
 import { paths } from './paths'
 import { detectHostOs, gpuVendorFromPciId, type GpuVendor } from './engine/catalog'
 import { DEFAULT_KERNEL_ID, findSupportedKernel } from './engine/kernels'
@@ -12,6 +13,7 @@ import { ExtensionService } from './services/extensionService'
 import { GeoService } from './services/geoService'
 import { KernelService } from './services/kernelService'
 import { LaunchService } from './services/launchService'
+import { TransferService } from './services/transferService'
 import { ProfileService } from './services/profileService'
 import { ProxyService } from './services/proxyService'
 import { createSafeStorageBox } from './services/secretService'
@@ -92,6 +94,7 @@ function createWindow(): void {
     minWidth: 1100,
     minHeight: 640,
     title: 'Isola',
+    icon: join(app.getAppPath(), 'build', 'icon.png'),
     // Trùng màu nền giao diện để không chớp trắng lúc mở.
     backgroundColor: '#141518',
     webPreferences: {
@@ -134,6 +137,7 @@ if (!app.requestSingleInstanceLock()) {
       const host = { os: detectHostOs(), gpuVendor: await detectGpuVendor() }
       const profiles = new ProfileService(db, dataRoot, { host })
       profiles.resetStaleRunning()
+      profiles.cleanupOrphans()
       const secrets = createSafeStorageBox()
       const kernels = new KernelService(paths.kernels(dataRoot))
       const geo = new GeoService(paths.geoip(dataRoot))
@@ -144,7 +148,11 @@ if (!app.requestSingleInstanceLock()) {
       })
       extensions.cleanup()
       launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions, cookies })
-      registerIpc({ profiles, proxies, geo, extensions, cookies, launcher, kernels, window: () => mainWindow })
+      const transfer = new TransferService(db, profiles, proxies, cookies, launcher)
+      // Trả null khi cửa sổ đã bị hủy: event (vd profile con thoát) đến sau khi đóng app
+      // không được gọi webContents.send trên object đã destroyed (gây crash main process).
+      const liveWindow = () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null)
+      registerIpc({ profiles, proxies, geo, extensions, cookies, launcher, kernels, transfer, window: liveWindow })
     } catch (err) {
       dialog.showErrorBox('Isola không khởi động được', String(err))
       app.exit(1)
@@ -152,6 +160,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     registerRendererProtocol()
     createWindow()
+    initAutoUpdate(() => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null))
   })
 
   app.on('window-all-closed', () => {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { rmSync } from 'node:fs'
+import { existsSync, readdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import type {
   BulkCreateInput,
   BulkCreateResult,
@@ -213,7 +214,7 @@ export class ProfileService {
   }
 
   /** Tên profile là UNIQUE; thêm hậu tố số cho tới khi chưa trùng. */
-  private uniqueName(base: string): string {
+  uniqueName(base: string): string {
     const exists = (name: string) => !!this.db.prepare('SELECT 1 FROM profiles WHERE name = ?').get(name)
     if (!exists(base)) return base
     for (let i = 2; i < 100000; i++) {
@@ -362,6 +363,30 @@ export class ProfileService {
   /** Lúc app khởi động không có process nào đang chạy, mọi `running` còn sót là do crash. */
   resetStaleRunning(): number {
     return this.db.prepare("UPDATE profiles SET status = 'idle' WHERE status = 'running'").run().changes
+  }
+
+  /**
+   * Lúc khởi động (chưa profile nào chạy): xóa thư mục profile trên đĩa không còn trong DB
+   * (mồ côi do test cũ hoặc reset DB). Chỉ đụng thư mục tên dạng UUID, giữ cả profile đã lưu trữ.
+   * Trả số thư mục đã xóa.
+   */
+  cleanupOrphans(): number {
+    const root = join(this.dataRoot, 'profiles')
+    if (!existsSync(root)) return 0
+    const known = new Set((this.db.prepare('SELECT id FROM profiles').all() as { id: string }[]).map((r) => r.id))
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    let removed = 0
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !isUuid.test(entry.name) || known.has(entry.name)) continue
+      // Dọn dẹp không bao giờ được làm kẹt khởi động: thư mục khóa/không xóa được thì bỏ qua.
+      try {
+        rmSync(join(root, entry.name), { recursive: true, force: true })
+        removed++
+      } catch {
+        /* để lần khởi động sau dọn tiếp */
+      }
+    }
+    return removed
   }
 
   // ---------- groups ----------

@@ -1,21 +1,63 @@
 {
   "name": "isola",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Isola - quản lý profile trình duyệt cô lập, local-first",
+  "author": "Isola",
+  "repository": "https://github.com/sauhv/isola",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "concurrently -k -n next,electron \"next dev src/renderer -H 127.0.0.1 -p 3100\" \"wait-on http://127.0.0.1:3100 && cross-env ISOLA_DEV_URL=http://127.0.0.1:3100 electron-vite dev\"",
     "build": "next build src/renderer && electron-vite build",
     "start": "electron-vite preview",
+    "icon": "node scripts/gen-icon.cjs",
+    "dist": "npm run build && electron-builder --win nsis",
+    "release": "npm run build && electron-builder --win nsis --publish always",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
     "test": "vitest run"
+  },
+  "build": {
+    "appId": "com.isola.app",
+    "productName": "Isola",
+    "asar": false,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**",
+      "src/renderer/out/**",
+      "build/icon.png",
+      "package.json",
+      "node_modules/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Isola"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "sauhv",
+        "repo": "isola"
+      }
+    ]
   },
   "dependencies": {
     "@photostructure/tz-lookup": "^11.7.0",
     "@puppeteer/browsers": "^3.2.3",
     "adm-zip": "^0.6.1",
     "better-sqlite3": "^13.0.3",
+    "electron-updater": "^6.6.2",
     "lucide-react": "^1.52.0",
     "maxmind": "^5.0.7",
     "proxy-chain": "^3.0.1",
@@ -30,6 +72,7 @@
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "electron": "^44.6.0",
+    "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
     "next": "^16.4.0",
     "react": "^19.3.0",

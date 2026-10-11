@@ -157,7 +157,27 @@ export class ExtensionService {
          ) ORDER BY e.name COLLATE NOCASE`
       )
       .all(profileId) as { dir: string }[]
-    return rows.map((r) => join(this.root, r.dir))
+    // Chỉ trả thư mục có manifest.json thật; bản cài hỏng/thiếu không được đưa vào --load-extension
+    // (sẽ làm Chrome bung hộp lỗi chặn lúc mở).
+    return rows.map((r) => join(this.root, r.dir)).filter((dir) => existsSync(join(dir, 'manifest.json')))
+  }
+
+  /** Extension (bật) áp cho một profile — cho trang tự kiểm hiển thị. */
+  listForProfile(profileId: string): { name: string; version: string }[] {
+    return this.db
+      .prepare(
+        `SELECT e.name, e.version, e.dir FROM extensions e JOIN profiles p ON p.id = ?
+         WHERE e.enabled = 1 AND (
+           e.scope = 'all'
+           OR (e.scope = 'groups' AND EXISTS (SELECT 1 FROM extension_targets t
+                 WHERE t.extension_id = e.id AND t.kind = 'group' AND t.target_id = p.group_id))
+           OR (e.scope = 'profiles' AND EXISTS (SELECT 1 FROM extension_targets t
+                 WHERE t.extension_id = e.id AND t.kind = 'profile' AND t.target_id = p.id))
+         ) ORDER BY e.name COLLATE NOCASE`
+      )
+      .all(profileId)
+      .filter((r) => existsSync(join(this.root, (r as { dir: string }).dir, 'manifest.json')))
+      .map((r) => ({ name: (r as { name: string }).name, version: (r as { version: string }).version }))
   }
 
   /** Gọi lúc khởi động (chưa profile nào chạy): xóa bản cũ, thư mục mồ côi, staging dở. */

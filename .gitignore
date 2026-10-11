@@ -1,6 +1,8 @@
 node_modules/
 out/
 dist/
+release/
+.claude/
 src/renderer/.next/
 src/renderer/out/
 src/renderer/next-env.d.ts
@@ -9,3 +11,6 @@ tests/.cache/
 *.db
 *.db-wal
 *.db-shm
+
+# File ca nhan, khong thuoc ma nguon
+/*.xlsx
