@@ -48,7 +48,8 @@
       {
         "provider": "github",
         "owner": "sauhv",
-        "repo": "isola"
+        "repo": "isola",
+        "releaseType": "release"
       }
     ]
   },
