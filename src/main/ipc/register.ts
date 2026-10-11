@@ -1,4 +1,4 @@
-import { dialog, ipcMain, screen, type BrowserWindow, type OpenDialogOptions } from 'electron'
+import { app, dialog, ipcMain, screen, type BrowserWindow, type OpenDialogOptions } from 'electron'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
@@ -208,6 +208,7 @@ function handle<A extends z.ZodTypeAny[], T>(
 }
 
 export function registerIpc(s: Services): void {
+  handle(Channels.appVersion, [], () => app.getVersion())
   handle(Channels.profilesList, [profileFilter], (f) => s.profiles.list(f ?? {}))
   // Cookie đọc trước khi tạo/sửa để lỗi định dạng không để lại profile dở.
   const readCookies = (text: string | undefined): CookieParam[] | null => {

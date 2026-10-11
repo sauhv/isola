@@ -12,6 +12,7 @@ function subscribe<T>(channel: string, cb: (e: T) => void): () => void {
 
 // Renderer chỉ chạm main qua object này. Không có hàm nào đọc password ra.
 const api: IsolaApi = {
+  appVersion: () => invoke(Channels.appVersion),
   profiles: {
     list: (filter) => invoke(Channels.profilesList, filter),
     create: (input) => invoke(Channels.profilesCreate, input),

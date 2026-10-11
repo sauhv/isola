@@ -28,6 +28,13 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false)
   const [newProfileTick, setNewProfileTick] = useState(0)
   const [stats, setStats] = useState({ total: 0, running: 0 })
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    call(isola().appVersion())
+      .then(setVersion)
+      .catch(() => {})
+  }, [])
 
   const refreshStats = useCallback(() => {
     call(isola().profiles.list())
@@ -104,6 +111,11 @@ export default function App() {
               </span>
             </div>
           </div>
+          {version && (
+            <div className="app-version" title={`Isola ${version}`}>
+              {collapsed ? `v${version}` : `Isola v${version}`}
+            </div>
+          )}
         </div>
       </nav>
 

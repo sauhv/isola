@@ -255,6 +255,8 @@ export interface ProfileStatusEvent {
 }
 
 export interface IsolaApi {
+  /** Phiên bản app (app.getVersion()), hiển thị trong giao diện. */
+  appVersion(): Promise<Result<string>>
   profiles: {
     list(filter?: ProfileFilter): Promise<Result<Profile[]>>
     create(input: ProfileInput): Promise<Result<Profile>>
