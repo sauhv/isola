@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Cpu, Globe, LayoutList, Plus, Puzzle } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import BrandLogo from './components/BrandLogo'
 import LangSwitcher from './components/LangSwitcher'
 import ToastHost from './components/ToastHost'
 import { useI18n } from './lib/i18n'
@@ -55,8 +56,10 @@ export default function App() {
     <div className="shell">
       <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
         <div className="brand">
-          <div className="brand-mark">I</div>
-          <span className="label">Isola</span>
+          <span className="brand-mark">
+            <BrandLogo size={32} />
+          </span>
+          <span className="label">ISOLA</span>
         </div>
         <button
           className="collapse-btn"
