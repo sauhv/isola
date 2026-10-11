@@ -10,6 +10,7 @@ import {
   Cookie,
   Copy,
   CopyPlus,
+  Download,
   LayoutGrid,
   FolderInput,
   Loader2,
@@ -188,6 +189,24 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
       const r = await call(isola().profiles.exportCookies(p.id))
       if (r.saved) toast(t('pt.exported', { n: r.count }), 'success')
     })
+  const exportMany = () => {
+    if (!confirm(t('pt.exportWarn', { n: selected.size }))) return
+    bulk(async () => {
+      const r = await call(isola().profiles.exportProfiles([...selected]))
+      if (r.saved) toast(t('pt.exportedProfiles', { n: r.count }), 'success')
+      return null
+    })
+  }
+  const importProfiles = () =>
+    bulk(async () => {
+      const r = await call(isola().profiles.importProfiles())
+      if (r)
+        toast(
+          r.warnings.length ? t('pt.importedWarn', { n: r.imported, w: r.warnings.length }) : t('pt.imported', { n: r.imported }),
+          r.warnings.length ? 'info' : 'success'
+        )
+      return null
+    }, true)
   const closeMany = () =>
     bulk(() =>
       runBatch(
@@ -248,7 +267,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         <button disabled={bulkBusy || selected.size === 0} onClick={() => setMoving(selectedProfiles)}>
           <FolderInput size={15} /> {t('pt.moveGroup')}
         </button>
-        <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet('Xuất profile')}>
+        <button disabled={bulkBusy || selected.size === 0} onClick={exportMany}>
           <Upload size={15} /> Export
         </button>
         <button disabled={bulkBusy || selected.size === 0} onClick={() => notYet(t('pt.shareProfile'))}>
@@ -275,6 +294,9 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         )}
         {bulkBusy && <Loader2 size={16} className="spin muted" />}
         <div className="spacer" />
+        <button disabled={bulkBusy} onClick={importProfiles}>
+          <Download size={15} /> {t('pt.import')}
+        </button>
         <button onClick={() => setBulkOpen(true)}>
           <Boxes size={15} /> {t('pt.bulkCreate')}
         </button>

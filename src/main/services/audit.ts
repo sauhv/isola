@@ -8,6 +8,8 @@ export type AuditAction =
   | 'proxy_change'
   | 'seed_rotate'
   | 'cookie_export'
+  | 'profile_export'
+  | 'profile_import'
   | 'archive'
   | 'purge'
 

@@ -150,6 +150,7 @@ addDict({
   'err.EXT_ID_MISMATCH': ['File mới là một extension khác (ID không khớp).', 'The new file is a different extension (ID mismatch).'],
   'err.EXT_NOT_STORE': ['Extension này không đến từ Web Store. Dùng Cập nhật từ file.', 'This extension did not come from the Web Store. Use Update from file.'],
   'err.EXT_PATH_INVALID': ['Đường dẫn extension không dùng được.', 'The extension path is not usable.'],
+  'err.BUNDLE_INVALID': ['File .isola không hợp lệ.', 'The .isola file is not valid.'],
   'err.INTERNAL': ['Lỗi nội bộ. Xem log để biết thêm.', 'Internal error. See the log for details.']
 })
 
@@ -291,6 +292,14 @@ addDict({
   'pt.arranged': ['Đã sắp {n} cửa sổ.', 'Arranged {n} windows.'],
   'pt.noneRunning': ['Không có profile đang chạy để sắp.', 'No running profiles to arrange.'],
   'pt.exported': ['Đã xuất {n} cookie.', 'Exported {n} cookies.'],
+  'pt.import': ['Nhập', 'Import'],
+  'pt.exportWarn': [
+    'Xuất {n} profile ra file .isola? File chứa cookie và password proxy ở dạng giải mã — giữ cẩn thận, chỉ chia sẻ cho người tin tưởng.',
+    'Export {n} profiles to a .isola file? The file contains cookies and proxy passwords in decrypted form — keep it safe and only share with people you trust.'
+  ],
+  'pt.exportedProfiles': ['Đã xuất {n} profile ra file .isola.', 'Exported {n} profiles to a .isola file.'],
+  'pt.imported': ['Đã nhập {n} profile.', 'Imported {n} profiles.'],
+  'pt.importedWarn': ['Đã nhập {n} profile, {w} cảnh báo (xem Fingerprint).', 'Imported {n} profiles, {w} warnings (check Fingerprint).'],
   'pt.closeFirst': ['Đóng {n} profile đang chạy trước khi đưa vào thùng rác.', 'Close {n} running profiles before moving to trash.'],
   'pt.confirmTrash': ['Đưa {n} profile vào thùng rác? Dữ liệu trình duyệt được giữ lại, khôi phục được trong tab Thùng rác.', 'Move {n} profiles to trash? Browser data is kept and can be restored in the Trash tab.'],
   'pt.emptyNone': ['Chưa có profile nào. Bấm "Tạo profile".', 'No profiles yet. Click "Create profile".'],

@@ -13,6 +13,8 @@ export const Channels = {
   profilesCreateMany: 'profiles:create-many',
   profilesArrange: 'profiles:arrange',
   profilesExportCookies: 'profiles:export-cookies',
+  profilesExport: 'profiles:export',
+  profilesImport: 'profiles:import',
   fingerprintsCatalog: 'fingerprints:catalog',
   fingerprintsPreview: 'fingerprints:preview',
   proxiesTestDraft: 'proxies:test-draft',

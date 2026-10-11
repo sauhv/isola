@@ -138,6 +138,12 @@ export interface BulkCreateResult {
   errors: { index: number; name: string; reason: string }[]
 }
 
+export interface ProfileImportResult {
+  imported: number
+  /** Cảnh báo theo từng profile, ví dụ fingerprint phải sinh lại vì seed lệch máy. */
+  warnings: { name: string; reason: string }[]
+}
+
 export interface KernelInfo {
   id: string
   major: number
@@ -268,6 +274,10 @@ export interface IsolaApi {
     arrangeWindows(ids: string[]): Promise<Result<number>>
     /** Xuất cookie của profile đang chạy ra file JSON. */
     exportCookies(id: string): Promise<Result<{ saved: boolean; count: number }>>
+    /** Xuất các profile đã chọn ra file .isola (cấu hình + fingerprint + proxy + cookie). */
+    exportProfiles(ids: string[]): Promise<Result<{ saved: boolean; count: number }>>
+    /** Nhập profile từ file .isola do người dùng chọn. null nếu người dùng hủy hộp thoại. */
+    importProfiles(): Promise<Result<ProfileImportResult | null>>
   }
   fingerprints: {
     catalog(): Promise<Result<CatalogOption[]>>

@@ -1,5 +1,5 @@
 import { dialog, ipcMain, screen, type BrowserWindow, type OpenDialogOptions } from 'electron'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
 import { IsolaError } from '../errors'
@@ -14,6 +14,7 @@ import type { GeoService } from '../services/geoService'
 import type { LaunchService } from '../services/launchService'
 import type { ProfileService } from '../services/profileService'
 import type { ProxyService } from '../services/proxyService'
+import type { ProfileBundle, TransferService } from '../services/transferService'
 import { Channels } from './channels'
 
 const id = z.string().uuid()
@@ -114,9 +115,59 @@ export interface Services {
   cookies: CookieService
   launcher: LaunchService
   kernels: KernelService
+  transfer: TransferService
   /** Cửa sổ chính: nhận event main → renderer, làm cha cho hộp thoại. */
   window: () => BrowserWindow | null
 }
+
+// Bundle .isola khi nhập: kiểm hình dạng thô; seed/catalog được ProfileService kiểm kỹ lúc dựng lại.
+const bundleCookie = z
+  .object({
+    name: z.string().max(256),
+    value: z.string().max(8192),
+    url: z.string().max(2048).optional(),
+    domain: z.string().max(256).optional(),
+    path: z.string().max(2048),
+    secure: z.boolean(),
+    httpOnly: z.boolean(),
+    sameSite: z.enum(['Strict', 'Lax', 'None']).optional(),
+    expires: z.number().optional()
+  })
+  .strict()
+const bundleProxy = z
+  .object({
+    label: z.string().max(100),
+    type: proxyType,
+    host: z.string().max(253),
+    port: z.number().int().min(1).max(65535),
+    username: z.string().max(200).nullable(),
+    password: z.string().max(500).nullable()
+  })
+  .strict()
+const bundleProfile = z
+  .object({
+    name: z.string().max(100),
+    groupName: z.string().max(100).nullable(),
+    tags: z.array(z.string().max(50)).max(20),
+    startUrls: z.array(z.string().max(2048)).max(20),
+    username: z.string().max(200).nullable(),
+    kernel: z.string().max(100),
+    platform: z.string().max(50).nullable(),
+    lab: z.boolean(),
+    notes: z.string().max(5000).nullable(),
+    fingerprint: z.object({ catalogId: z.string().max(100), seed: z.record(z.string(), z.unknown()) }).strict(),
+    proxy: bundleProxy.nullable(),
+    cookies: z.array(bundleCookie).max(5000).nullable()
+  })
+  .strict()
+const profileBundle = z
+  .object({
+    isola: z.literal('profiles'),
+    version: z.literal(1),
+    exportedAt: z.string(),
+    profiles: z.array(bundleProfile).min(1).max(5000)
+  })
+  .strict()
 
 /** Hộp thoại chọn .crx/.zip hoặc thư mục extension. null nếu người dùng hủy. */
 async function pickExtensionPath(win: BrowserWindow | null, kind: 'file' | 'folder'): Promise<string | null> {
@@ -196,6 +247,36 @@ export function registerIpc(s: Services): void {
     if (res.canceled || !res.filePath) return { saved: false, count: cookies.length }
     writeFileSync(res.filePath, JSON.stringify(cookies, null, 2))
     return { saved: true, count: cookies.length }
+  })
+  handle(Channels.profilesExport, [z.array(id).min(1).max(5000)], async (ids) => {
+    const bundle = await s.transfer.export(ids)
+    const win = s.window()
+    const stamp = new Date().toISOString().slice(0, 10)
+    const defaultName = ids.length === 1 ? `${s.profiles.get(ids[0]).name.replace(/[^\w.-]+/g, '_').slice(0, 40)}.isola` : `profiles-${stamp}.isola`
+    const opts = { defaultPath: defaultName, filters: [{ name: 'Isola bundle', extensions: ['isola'] }] }
+    const res = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (res.canceled || !res.filePath) return { saved: false, count: bundle.profiles.length }
+    writeFileSync(res.filePath, JSON.stringify(bundle, null, 2))
+    return { saved: true, count: bundle.profiles.length }
+  })
+  handle(Channels.profilesImport, [], async () => {
+    const win = s.window()
+    const opts: OpenDialogOptions = {
+      title: 'Chọn file .isola',
+      properties: ['openFile'],
+      filters: [{ name: 'Isola bundle', extensions: ['isola', 'json'] }]
+    }
+    const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (r.canceled || r.filePaths.length === 0) return null
+    let raw: unknown
+    try {
+      raw = JSON.parse(readFileSync(r.filePaths[0], 'utf8'))
+    } catch {
+      throw new IsolaError('BUNDLE_INVALID', 'File không phải JSON hợp lệ')
+    }
+    const parsed = profileBundle.safeParse(raw)
+    if (!parsed.success) throw new IsolaError('BUNDLE_INVALID', parsed.error.issues[0]?.message)
+    return s.transfer.import(parsed.data as ProfileBundle)
   })
   handle(Channels.fingerprintsCatalog, [], () =>
     compatibleEntries(s.profiles.host).map((e) => ({ id: e.id, label: e.label, os: e.os, gpuVendor: e.gpuVendor }))
