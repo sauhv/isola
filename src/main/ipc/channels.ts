@@ -2,6 +2,11 @@
 export const Channels = {
   appVersion: 'app:version',
   activityList: 'activity:list',
+  settingsInfo: 'settings:info',
+  settingsOpenData: 'settings:open-data',
+  settingsOpenBackups: 'settings:open-backups',
+  settingsBackupNow: 'settings:backup-now',
+  settingsCheckUpdate: 'settings:check-update',
   profilesList: 'profiles:list',
   profilesCreate: 'profiles:create',
   profilesUpdate: 'profiles:update',

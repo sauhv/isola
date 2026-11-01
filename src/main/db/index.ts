@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type Db = Database.Database
@@ -54,18 +54,34 @@ function listBackups(backupDir: string): string[] {
     .map((n) => join(backupDir, n))
 }
 
-/** Sau khi mở & DB lành: chụp một bản sao lưu, giữ lại BACKUP_KEEP bản gần nhất. */
-function snapshot(db: Db, file: string, backupDir: string): void {
+/** Sau khi mở & DB lành: chụp một bản sao lưu, giữ lại BACKUP_KEEP bản gần nhất. Trả tên file hoặc null. */
+function snapshot(db: Db, file: string, backupDir: string): string | null {
   try {
     mkdirSync(backupDir, { recursive: true })
     db.pragma('wal_checkpoint(TRUNCATE)')
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    copyFileSync(file, join(backupDir, `isola-${stamp}.db`))
+    const name = `isola-${stamp}.db`
+    copyFileSync(file, join(backupDir, name))
     const extra = listBackups(backupDir).slice(BACKUP_KEEP)
     for (const old of extra) rmSync(old, { force: true })
+    return name
   } catch (err) {
     console.error('[db] sao lưu lỗi:', (err as Error).message)
+    return null
   }
+}
+
+/** Sao lưu ngay theo yêu cầu người dùng (nút trong Cài đặt). */
+export function backupNow(db: Db, file: string, backupDir: string): string | null {
+  return snapshot(db, file, backupDir)
+}
+
+/** Danh sách sao lưu (mới nhất trước) kèm thời điểm + kích thước. */
+export function listBackupInfo(backupDir: string): { name: string; at: string; size: number }[] {
+  return listBackups(backupDir).map((p) => {
+    const st = statSync(p)
+    return { name: p.split(/[\\/]/).pop()!, at: st.mtime.toISOString(), size: st.size }
+  })
 }
 
 type Migration = { version: number; name: string; sql: string }

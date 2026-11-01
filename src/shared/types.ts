@@ -144,6 +144,19 @@ export interface ProfileImportResult {
   warnings: { name: string; reason: string }[]
 }
 
+export interface BackupInfo {
+  name: string
+  at: string
+  size: number
+}
+export interface SettingsInfo {
+  version: string
+  packaged: boolean
+  dataRoot: string
+  backups: BackupInfo[]
+}
+export type UpdateStatus = 'dev' | 'available' | 'latest' | 'error'
+
 /** Một dòng nhật ký hoạt động (audit_log) để hiển thị. */
 export interface ActivityEntry {
   at: string
@@ -307,6 +320,13 @@ export interface IsolaApi {
   }
   activity: {
     list(): Promise<Result<ActivityEntry[]>>
+  }
+  settings: {
+    info(): Promise<Result<SettingsInfo>>
+    openDataFolder(): Promise<Result<null>>
+    openBackupsFolder(): Promise<Result<null>>
+    backupNow(): Promise<Result<{ name: string; backups: BackupInfo[] }>>
+    checkUpdate(): Promise<Result<UpdateStatus>>
   }
   proxies: {
     list(): Promise<Result<Proxy[]>>

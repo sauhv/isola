@@ -27,6 +27,7 @@ export type ErrorCode =
   | 'EXT_NOT_STORE'
   | 'EXT_PATH_INVALID'
   | 'BUNDLE_INVALID'
+  | 'INTERNAL'
 
 export class IsolaError extends Error {
   constructor(

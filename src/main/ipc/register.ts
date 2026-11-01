@@ -1,7 +1,10 @@
-import { app, dialog, ipcMain, screen, type BrowserWindow, type OpenDialogOptions } from 'electron'
+import { app, dialog, ipcMain, screen, shell, type BrowserWindow, type OpenDialogOptions } from 'electron'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
+import { backupNow, listBackupInfo, type Db } from '../db'
+import { paths } from '../paths'
+import { checkForUpdatesNow } from '../updater'
 import { IsolaError } from '../errors'
 import { CookieParseError, parseCookies, type CookieParam } from '../engine/cookies'
 import { DEFAULT_KERNEL_ID, findSupportedKernel } from '../engine/kernels'
@@ -116,6 +119,8 @@ export interface Services {
   launcher: LaunchService
   kernels: KernelService
   transfer: TransferService
+  db: Db
+  dataRoot: string
   /** Cửa sổ chính: nhận event main → renderer, làm cha cho hộp thoại. */
   window: () => BrowserWindow | null
 }
@@ -314,6 +319,25 @@ export function registerIpc(s: Services): void {
 
   handle(Channels.tagsList, [], () => s.profiles.listTags())
   handle(Channels.activityList, [], () => s.profiles.listActivity())
+  handle(Channels.settingsInfo, [], () => ({
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    dataRoot: s.dataRoot,
+    backups: listBackupInfo(paths.backups(s.dataRoot))
+  }))
+  handle(Channels.settingsOpenData, [], async () => (await shell.openPath(s.dataRoot), null))
+  handle(Channels.settingsOpenBackups, [], async () => {
+    const { mkdirSync } = await import('node:fs')
+    mkdirSync(paths.backups(s.dataRoot), { recursive: true })
+    await shell.openPath(paths.backups(s.dataRoot))
+    return null
+  })
+  handle(Channels.settingsBackupNow, [], () => {
+    const name = backupNow(s.db, paths.db(s.dataRoot), paths.backups(s.dataRoot))
+    if (!name) throw new IsolaError('INTERNAL', 'Sao lưu không thành công')
+    return { name, backups: listBackupInfo(paths.backups(s.dataRoot)) }
+  })
+  handle(Channels.settingsCheckUpdate, [], () => checkForUpdatesNow())
 
   handle(Channels.kernelsList, [], () => s.kernels.list())
   handle(Channels.kernelsInstall, [z.string()], (kid) =>

@@ -133,7 +133,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     try {
       const dataRoot = prepareDataRoot()
-      db = openDatabase(paths.db(dataRoot), { backupDir: paths.backups(dataRoot) })
+      const database = openDatabase(paths.db(dataRoot), { backupDir: paths.backups(dataRoot) })
+      db = database
       const host = { os: detectHostOs(), gpuVendor: await detectGpuVendor() }
       const profiles = new ProfileService(db, dataRoot, { host })
       profiles.resetStaleRunning()
@@ -153,7 +154,7 @@ if (!app.requestSingleInstanceLock()) {
       // Trả null khi cửa sổ đã bị hủy: event (vd profile con thoát) đến sau khi đóng app
       // không được gọi webContents.send trên object đã destroyed (gây crash main process).
       const liveWindow = () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null)
-      registerIpc({ profiles, proxies, geo, extensions, cookies, launcher, kernels, transfer, window: liveWindow })
+      registerIpc({ profiles, proxies, geo, extensions, cookies, launcher, kernels, transfer, db: database, dataRoot, window: liveWindow })
     } catch (err) {
       dialog.showErrorBox('Isola không khởi động được', String(err))
       app.exit(1)

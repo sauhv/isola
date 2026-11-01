@@ -34,3 +34,15 @@ export function initAutoUpdate(getWindow: () => BrowserWindow | null): void {
   autoUpdater.checkForUpdates().catch((err) => console.error('[updater] check', err?.message ?? err))
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 60 * 60 * 1000)
 }
+
+/** Kiểm cập nhật theo yêu cầu (nút trong Cài đặt). Trả trạng thái gọn cho UI. */
+export async function checkForUpdatesNow(): Promise<'dev' | 'available' | 'latest' | 'error'> {
+  if (!app.isPackaged) return 'dev'
+  try {
+    const r = await autoUpdater.checkForUpdates()
+    const latest = r?.updateInfo?.version
+    return latest && latest !== app.getVersion() ? 'available' : 'latest'
+  } catch {
+    return 'error'
+  }
+}
