@@ -75,7 +75,7 @@
     "electron": "^44.6.0",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
-    "next": "^16.4.0",
+    "next": "^16.4.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^5.9.3",
