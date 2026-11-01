@@ -181,20 +181,54 @@ export class ExtensionService {
   }
 
   /** Gọi lúc khởi động (chưa profile nào chạy): xóa bản cũ, thư mục mồ côi, staging dở. */
+  /**
+   * Đồng bộ DB với đĩa lúc khởi động: nếu `dir` trong DB không còn manifest, tìm thư mục phiên bản
+   * khác của cùng extension còn manifest và cập nhật DB; nếu không còn file nào thì gỡ record (và
+   * phạm vi gán). Giúp tự lành khi dir/DB lệch nhau (cài lại, tắt đột ngột...) để extension vẫn hiện
+   * và nạp được. Gọi TRƯỚC cleanup.
+   */
+  reconcile(): void {
+    const rows = this.db.prepare('SELECT id, dir FROM extensions').all() as { id: string; dir: string }[]
+    for (const r of rows) {
+      if (existsSync(join(this.root, r.dir, 'manifest.json'))) continue
+      const idDir = join(this.root, r.id)
+      const found = existsSync(idDir)
+        ? listDirs(idDir)
+            .map((v) => `${r.id}/${v}`)
+            .find((rel) => existsSync(join(this.root, rel, 'manifest.json')))
+        : undefined
+      if (found) {
+        this.db.prepare('UPDATE extensions SET dir = ? WHERE id = ?').run(found, r.id)
+      } else {
+        this.db.transaction(() => {
+          this.db.prepare('DELETE FROM extension_targets WHERE extension_id = ?').run(r.id)
+          this.db.prepare('DELETE FROM extensions WHERE id = ?').run(r.id)
+        })()
+      }
+    }
+  }
+
   cleanup(): void {
     rmSync(join(this.root, STAGING), { recursive: true, force: true })
     const current = new Map(
       (this.db.prepare('SELECT id, dir FROM extensions').all() as { id: string; dir: string }[]).map((r) => [r.id, r.dir])
     )
+    const tryRm = (p: string) => {
+      try {
+        rmSync(p, { recursive: true, force: true })
+      } catch {
+        /* thư mục đang khóa: để lần sau dọn, không làm kẹt khởi động */
+      }
+    }
     for (const id of listDirs(this.root)) {
       if (id === STAGING) continue
       const keep = current.get(id)
       if (!keep) {
-        rmSync(join(this.root, id), { recursive: true, force: true })
+        tryRm(join(this.root, id))
         continue
       }
       for (const v of listDirs(join(this.root, id))) {
-        if (`${id}/${v}` !== keep) rmSync(join(this.root, id, v), { recursive: true, force: true })
+        if (`${id}/${v}` !== keep) tryRm(join(this.root, id, v))
       }
     }
   }

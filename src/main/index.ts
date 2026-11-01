@@ -146,6 +146,7 @@ if (!app.requestSingleInstanceLock()) {
       const extensions = new ExtensionService(db, paths.extensions(dataRoot), {
         prodVersion: findSupportedKernel(DEFAULT_KERNEL_ID)!.buildId
       })
+      extensions.reconcile()
       extensions.cleanup()
       launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions, cookies })
       const transfer = new TransferService(db, profiles, proxies, cookies, launcher)
