@@ -2,6 +2,7 @@ import type { ProfileImportResult, ProxyType } from '../../shared/types'
 import type { Db } from '../db'
 import type { CookieParam } from '../engine/cookies'
 import { parseCsv, parseBool, splitMulti } from '../engine/csv'
+import { parseXlsx } from '../engine/xlsx'
 import { parseProxyLine, ProxyParseError } from '../engine/proxyParse'
 import { IsolaError } from '../errors'
 import { audit } from './audit'
@@ -141,8 +142,16 @@ export class TransferService {
    * username, notes/ghi chú, proxy, starturls/url, lab. Lỗi dòng nào ghi cảnh báo, không chặn cả lô.
    */
   importCsv(text: string): ProfileImportResult {
+    return this.importRows(parseCsv(text))
+  }
+
+  /** Nhập từ file Excel .xlsx (cùng cột như CSV). */
+  importXlsx(buf: Buffer): ProfileImportResult {
+    return this.importRows(parseXlsx(buf))
+  }
+
+  private importRows(rows: Record<string, string>[]): ProfileImportResult {
     const warnings: ProfileImportResult['warnings'] = []
-    const rows = parseCsv(text)
     const pick = (r: Record<string, string>, ...keys: string[]) => {
       for (const k of keys) if (r[k] != null && r[k] !== '') return r[k]
       return ''

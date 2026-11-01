@@ -3,12 +3,16 @@
  * Trả về mảng bản ghi theo header (chữ thường, đã trim). Dòng trống bị bỏ qua.
  */
 export function parseCsv(text: string): Record<string, string>[] {
-  const rows = tokenize(text.replace(/^﻿/, '')) // bỏ BOM nếu có
+  return rowsToRecords(tokenize(text.replace(/^﻿/, ''))) // bỏ BOM nếu có
+}
+
+/** Lưới ô (dòng đầu là header) → mảng bản ghi theo header (chữ thường, trim). Dòng trống bị bỏ. */
+export function rowsToRecords(rows: string[][]): Record<string, string>[] {
   if (rows.length === 0) return []
-  const header = rows[0].map((h) => h.trim().toLowerCase())
+  const header = rows[0].map((h) => (h ?? '').trim().toLowerCase())
   const out: Record<string, string>[] = []
   for (const r of rows.slice(1)) {
-    if (r.every((c) => c.trim() === '')) continue
+    if (r.every((c) => (c ?? '').trim() === '')) continue
     const rec: Record<string, string> = {}
     header.forEach((h, i) => {
       if (h) rec[h] = (r[i] ?? '').trim()

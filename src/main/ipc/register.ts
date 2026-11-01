@@ -263,20 +263,23 @@ export function registerIpc(s: Services): void {
   handle(Channels.profilesImport, [], async () => {
     const win = s.window()
     const opts: OpenDialogOptions = {
-      title: 'Chọn file .isola hoặc .csv',
+      title: 'Chọn file .isola, .csv hoặc .xlsx',
       properties: ['openFile'],
       filters: [
-        { name: 'Isola / CSV', extensions: ['isola', 'csv', 'json'] },
+        { name: 'Isola / CSV / Excel', extensions: ['isola', 'csv', 'xlsx', 'json'] },
         { name: 'Isola bundle', extensions: ['isola', 'json'] },
-        { name: 'CSV', extensions: ['csv'] }
+        { name: 'CSV', extensions: ['csv'] },
+        { name: 'Excel', extensions: ['xlsx'] }
       ]
     }
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     if (r.canceled || r.filePaths.length === 0) return null
     const file = r.filePaths[0]
+    const lower = file.toLowerCase()
+    // Nhận diện theo đuôi file: .xlsx (nhị phân), .csv (text), còn lại là bundle .isola (JSON).
+    if (lower.endsWith('.xlsx')) return s.transfer.importXlsx(readFileSync(file))
     const text = readFileSync(file, 'utf8')
-    // Nhận diện CSV theo đuôi file; còn lại coi là bundle .isola (JSON).
-    if (file.toLowerCase().endsWith('.csv')) return s.transfer.importCsv(text)
+    if (lower.endsWith('.csv')) return s.transfer.importCsv(text)
     let raw: unknown
     try {
       raw = JSON.parse(text)
