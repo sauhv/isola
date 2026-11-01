@@ -6,6 +6,7 @@ export const paths = {
   geoip: (dataRoot: string) => join(dataRoot, 'geoip'),
   extensions: (dataRoot: string) => join(dataRoot, 'extensions'),
   logs: (dataRoot: string) => join(dataRoot, 'logs'),
+  backups: (dataRoot: string) => join(dataRoot, 'backups'),
   profile: (dataRoot: string, id: string) => join(dataRoot, 'profiles', id),
   userData: (dataRoot: string, id: string) => join(dataRoot, 'profiles', id, 'user-data')
 }

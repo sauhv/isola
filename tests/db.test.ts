@@ -4,7 +4,8 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadMigrations, migrate, openDatabase } from '../src/main/db'
+import { isHealthy, loadMigrations, migrate, openDatabase } from '../src/main/db'
+import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
 const LATEST = loadMigrations().at(-1)!.version
@@ -102,6 +103,37 @@ describe('db', () => {
     expect(n).toBeGreaterThanOrEqual(200)
     // Transaction 200 dòng là nguyên tử: không bao giờ còn lô dở.
     expect(n % 200).toBe(0)
+    db.close()
+  })
+
+  it('tự sao lưu khi mở, và tự khôi phục khi DB hỏng', () => {
+    const file = join(dir, 'isola.db')
+    const backupDir = join(dir, 'backups')
+
+    // mở lần đầu: tạo bản ghi + sao lưu
+    let db = openDatabase(file, { backupDir })
+    db.pragma('user_version = 7')
+    db.exec("CREATE TABLE IF NOT EXISTS t (x TEXT)")
+    db.prepare('INSERT INTO t (x) VALUES (?)').run('giữ-nguyên')
+    db.close()
+    // mở lại để chụp sao lưu có dữ liệu
+    db = openDatabase(file, { backupDir })
+    db.close()
+    expect(readdirSync(backupDir).some((n) => /^isola-.*\.db$/.test(n))).toBe(true)
+
+    // làm hỏng file DB
+    writeFileSync(file, Buffer.from('không-phải-sqlite-đây-là-rác'))
+    rmSync(file + '-wal', { force: true })
+    rmSync(file + '-shm', { force: true })
+    expect(isHealthy(file)).toBe(false)
+
+    // mở lại với backupDir → tự khôi phục từ sao lưu
+    db = openDatabase(file, { backupDir })
+    expect(isHealthy(file)).toBe(true)
+    const row = db.prepare("SELECT x FROM t").get() as { x: string } | undefined
+    expect(row?.x).toBe('giữ-nguyên')
+    // file hỏng được giữ lại dạng .corrupt-*
+    expect(readdirSync(dir).some((n) => n.includes('.corrupt-'))).toBe(true)
     db.close()
   })
 })

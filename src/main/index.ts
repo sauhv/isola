@@ -133,7 +133,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     try {
       const dataRoot = prepareDataRoot()
-      db = openDatabase(paths.db(dataRoot))
+      db = openDatabase(paths.db(dataRoot), { backupDir: paths.backups(dataRoot) })
       const host = { os: detectHostOs(), gpuVendor: await detectGpuVendor() }
       const profiles = new ProfileService(db, dataRoot, { host })
       profiles.resetStaleRunning()
