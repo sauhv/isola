@@ -242,6 +242,10 @@ export class LaunchService extends EventEmitter {
         audit(this.db, 'close', id, { pid: entry.pid, code, signal })
         this.emitStatus({ id, status: 'idle' })
       })
+    } catch (err) {
+      // Ghi lỗi mở để người dùng xem lại ở Nhật ký. Mã lỗi không chứa password (xem IsolaError).
+      audit(this.db, 'launch_failed', id, { error: err instanceof IsolaError ? err.message || err.code : 'INTERNAL' })
+      throw err
     } finally {
       // Chỉ còn khác null khi launch lỗi giữa chừng.
       await relay?.close().catch(() => {})

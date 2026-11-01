@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
+  ActivityEntry,
   BulkCreateInput,
   BulkCreateResult,
   Group,
@@ -387,6 +388,25 @@ export class ProfileService {
       }
     }
     return removed
+  }
+
+  /** Nhật ký hoạt động (audit_log) mới nhất trước, kèm tên/số profile (null nếu đã xóa hẳn). */
+  listActivity(limit = 300): ActivityEntry[] {
+    const rows = this.db
+      .prepare(
+        `SELECT a.at, a.action, a.profile_id, a.detail, p.name AS profile_name, p.serial
+         FROM audit_log a LEFT JOIN profiles p ON p.id = a.profile_id
+         ORDER BY a.at DESC, a.rowid DESC LIMIT ?`
+      )
+      .all(limit) as { at: string; action: string; profile_id: string | null; detail: string; profile_name: string | null; serial: number | null }[]
+    return rows.map((r) => ({
+      at: r.at,
+      action: r.action,
+      profileId: r.profile_id,
+      profileName: r.profile_name,
+      serial: r.serial,
+      detail: r.detail
+    }))
   }
 
   // ---------- groups ----------

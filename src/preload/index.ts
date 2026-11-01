@@ -43,6 +43,9 @@ const api: IsolaApi = {
   tags: {
     list: () => invoke(Channels.tagsList)
   },
+  activity: {
+    list: () => invoke(Channels.activityList)
+  },
   kernels: {
     list: () => invoke(Channels.kernelsList),
     install: (id) => invoke(Channels.kernelsInstall, id)

@@ -1,19 +1,20 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Cpu, Globe, LayoutList, Plus, Puzzle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Cpu, Globe, History, LayoutList, Plus, Puzzle } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import BrandLogo from './components/BrandLogo'
 import LangSwitcher from './components/LangSwitcher'
 import ToastHost from './components/ToastHost'
 import { useI18n } from './lib/i18n'
 import { call, isola } from './lib/isola'
+import ActivityPage from './views/ActivityPage'
 import ExtensionsPage from './views/ExtensionsPage'
 import KernelsPage from './views/KernelsPage'
 import ProfilesPage from './views/ProfilesPage'
 import ProxiesPage from './views/ProxiesPage'
 
 // Các màn nằm trong src/renderer/views (không dùng tên `pages` vì Next.js coi đó là Pages Router).
-export type Page = 'profiles' | 'proxies' | 'extensions' | 'kernels'
+export type Page = 'profiles' | 'proxies' | 'extensions' | 'kernels' | 'activity'
 
 // Nhãn điều hướng là thuật ngữ giữ nguyên ở cả hai ngôn ngữ.
 const NAV: { id: Page; label: string; icon: ReactNode }[] = [
@@ -92,6 +93,7 @@ export default function App() {
 
         <div className="nav-section">{t('app.system')}</div>
         {navItem('kernels', 'Kernel', <Cpu size={18} />)}
+        {navItem('activity', t('act.nav'), <History size={18} />)}
 
         <div style={{ marginTop: 'auto' }}>
           {collapsed ? <LangSwitcher collapsed /> : <LangSwitcher />}
@@ -124,6 +126,7 @@ export default function App() {
         {page === 'proxies' && <ProxiesPage />}
         {page === 'extensions' && <ExtensionsPage />}
         {page === 'kernels' && <KernelsPage />}
+        {page === 'activity' && <ActivityPage />}
       </main>
       <ToastHost />
     </div>

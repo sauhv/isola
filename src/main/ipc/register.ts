@@ -310,6 +310,7 @@ export function registerIpc(s: Services): void {
   handle(Channels.groupsRemove, [id], (gid) => (s.profiles.removeGroup(gid), null))
 
   handle(Channels.tagsList, [], () => s.profiles.listTags())
+  handle(Channels.activityList, [], () => s.profiles.listActivity())
 
   handle(Channels.kernelsList, [], () => s.kernels.list())
   handle(Channels.kernelsInstall, [z.string()], (kid) =>

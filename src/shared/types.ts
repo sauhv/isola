@@ -144,6 +144,17 @@ export interface ProfileImportResult {
   warnings: { name: string; reason: string }[]
 }
 
+/** Một dòng nhật ký hoạt động (audit_log) để hiển thị. */
+export interface ActivityEntry {
+  at: string
+  action: string
+  profileId: string | null
+  profileName: string | null
+  serial: number | null
+  /** JSON chi tiết (không chứa password/cookie). */
+  detail: string
+}
+
 export interface KernelInfo {
   id: string
   major: number
@@ -293,6 +304,9 @@ export interface IsolaApi {
   }
   tags: {
     list(): Promise<Result<Tag[]>>
+  }
+  activity: {
+    list(): Promise<Result<ActivityEntry[]>>
   }
   proxies: {
     list(): Promise<Result<Proxy[]>>

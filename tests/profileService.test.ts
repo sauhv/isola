@@ -37,6 +37,16 @@ describe('profileService', () => {
     expect(actions(a.id)).toEqual(['create'])
   })
 
+  it('listActivity: mới nhất trước, kèm tên/số profile', () => {
+    const a = svc.create({ name: 'Acc A' })
+    svc.create({ name: 'Acc B' })
+    const act = svc.listActivity()
+    expect(act.length).toBe(2)
+    expect(act[0]).toMatchObject({ action: 'create', profileName: 'Acc B' }) // mới nhất trước
+    const forA = act.find((e) => e.profileId === a.id)!
+    expect(forA).toMatchObject({ profileName: 'Acc A', serial: 1 })
+  })
+
   it('tag: tạo theo tên, lọc theo tag, tag mồ côi bị dọn', () => {
     const a = svc.create({ name: 'A', tags: ['fb', 'khách 1', 'fb'] })
     svc.create({ name: 'B', tags: ['tiktok'] })

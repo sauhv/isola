@@ -10,6 +10,7 @@ export type AuditAction =
   | 'cookie_export'
   | 'profile_export'
   | 'profile_import'
+  | 'launch_failed'
   | 'archive'
   | 'purge'
 

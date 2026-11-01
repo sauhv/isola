@@ -1,6 +1,7 @@
 // Tên kênh IPC dùng chung giữa main và preload.
 export const Channels = {
   appVersion: 'app:version',
+  activityList: 'activity:list',
   profilesList: 'profiles:list',
   profilesCreate: 'profiles:create',
   profilesUpdate: 'profiles:update',
