@@ -263,15 +263,23 @@ export function registerIpc(s: Services): void {
   handle(Channels.profilesImport, [], async () => {
     const win = s.window()
     const opts: OpenDialogOptions = {
-      title: 'Chọn file .isola',
+      title: 'Chọn file .isola hoặc .csv',
       properties: ['openFile'],
-      filters: [{ name: 'Isola bundle', extensions: ['isola', 'json'] }]
+      filters: [
+        { name: 'Isola / CSV', extensions: ['isola', 'csv', 'json'] },
+        { name: 'Isola bundle', extensions: ['isola', 'json'] },
+        { name: 'CSV', extensions: ['csv'] }
+      ]
     }
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     if (r.canceled || r.filePaths.length === 0) return null
+    const file = r.filePaths[0]
+    const text = readFileSync(file, 'utf8')
+    // Nhận diện CSV theo đuôi file; còn lại coi là bundle .isola (JSON).
+    if (file.toLowerCase().endsWith('.csv')) return s.transfer.importCsv(text)
     let raw: unknown
     try {
-      raw = JSON.parse(readFileSync(r.filePaths[0], 'utf8'))
+      raw = JSON.parse(text)
     } catch {
       throw new IsolaError('BUNDLE_INVALID', 'File không phải JSON hợp lệ')
     }

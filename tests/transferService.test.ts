@@ -124,4 +124,26 @@ describe('TransferService', () => {
     expect(res.warnings).toEqual([{ name: 'Seed', reason: 'FINGERPRINT_REGENERATED' }])
     expect(b.profiles.list()[0].fingerprint).not.toBeNull()
   })
+
+  it('importCsv: tạo profile theo dòng, khớp nhóm, parse proxy, tách tags; dòng thiếu tên báo cảnh báo', () => {
+    const csv = [
+      'name,group,tags,platform,proxy,lab',
+      'Acc A,Shop,fb;vip,facebook,,true',
+      'Acc B,Shop,tiktok,tiktok,socks5://u:p@9.9.9.9:1080,false',
+      ',Shop,,,,true'
+    ].join('\n')
+    const res = a.transfer.importCsv(csv)
+    expect(res.imported).toBe(2)
+    expect(res.warnings).toHaveLength(1) // dòng thiếu tên
+
+    const list = a.profiles.list()
+    const accA = list.find((p) => p.name === 'Acc A')!
+    expect(accA.groupName).toBe('Shop')
+    expect(accA.tags.map((t) => t.name).sort()).toEqual(['fb', 'vip'])
+    expect(accA.lab).toBe(true)
+
+    const accB = list.find((p) => p.name === 'Acc B')!
+    expect(accB.proxyId).toBeTruthy()
+    expect(a.proxies.list().some((x) => x.host === '9.9.9.9' && x.type === 'socks5')).toBe(true)
+  })
 })

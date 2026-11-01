@@ -293,6 +293,7 @@ addDict({
   'pt.noneRunning': ['Không có profile đang chạy để sắp.', 'No running profiles to arrange.'],
   'pt.exported': ['Đã xuất {n} cookie.', 'Exported {n} cookies.'],
   'pt.import': ['Nhập', 'Import'],
+  'pt.importTitle': ['Nhập profile từ file .isola hoặc .csv', 'Import profiles from a .isola or .csv file'],
   'pt.exportWarn': [
     'Xuất {n} profile ra file .isola? File chứa cookie và password proxy ở dạng giải mã — giữ cẩn thận, chỉ chia sẻ cho người tin tưởng.',
     'Export {n} profiles to a .isola file? The file contains cookies and proxy passwords in decrypted form — keep it safe and only share with people you trust.'

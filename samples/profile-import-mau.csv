@@ -1,0 +1,5 @@
+name,group,tags,platform,username,notes,proxy,starturls,lab
+Facebook - CSV 1,Marketing,facebook;mẫu,facebook,user_fb_01,"Tài khoản mẫu, 2FA lưu ở trình quản lý riêng",,https://www.facebook.com/,true
+TikTok - CSV 2,Marketing,tiktok,tiktok,user_tt_02,,,https://www.tiktok.com/,true
+Shopee - CSV 3,,shopee;bán hàng,shopee,,Không proxy (lab) - mở bằng IP máy,,,true
+Có proxy - CSV 4,Sales,proxy;demo,,,Proxy SOCKS5 mẫu (đổi thành proxy thật của bạn),socks5://user:pass@1.2.3.4:1080,,false

@@ -1,6 +1,8 @@
 import type { ProfileImportResult, ProxyType } from '../../shared/types'
 import type { Db } from '../db'
 import type { CookieParam } from '../engine/cookies'
+import { parseCsv, parseBool, splitMulti } from '../engine/csv'
+import { parseProxyLine, ProxyParseError } from '../engine/proxyParse'
 import { IsolaError } from '../errors'
 import { audit } from './audit'
 import type { CookieService } from './cookieService'
@@ -130,6 +132,59 @@ export class TransferService {
         warnings.push({ name: label, reason: err instanceof IsolaError ? err.code : String(err) })
       }
     }
+    return { imported, warnings }
+  }
+
+  /**
+   * Nhập profile từ CSV: mỗi dòng một profile, fingerprint sinh mới.
+   * Cột (không phân biệt hoa/thường, có alias VI): name/tên, group/nhóm, tags, platform/nền tảng,
+   * username, notes/ghi chú, proxy, starturls/url, lab. Lỗi dòng nào ghi cảnh báo, không chặn cả lô.
+   */
+  importCsv(text: string): ProfileImportResult {
+    const warnings: ProfileImportResult['warnings'] = []
+    const rows = parseCsv(text)
+    const pick = (r: Record<string, string>, ...keys: string[]) => {
+      for (const k of keys) if (r[k] != null && r[k] !== '') return r[k]
+      return ''
+    }
+    let imported = 0
+    rows.forEach((r, i) => {
+      const name = pick(r, 'name', 'tên', 'ten', 't-n')
+      const label = name || `dòng ${i + 2}`
+      try {
+        if (!name) throw new IsolaError('INVALID_INPUT', 'thiếu tên')
+        const groupName = pick(r, 'group', 'nhóm', 'nhom')
+        const proxyLine = pick(r, 'proxy')
+        let proxyId: string | null = null
+        if (proxyLine) {
+          let input
+          try {
+            input = parseProxyLine(proxyLine, 'http')
+          } catch (e) {
+            throw new IsolaError('INVALID_INPUT', e instanceof ProxyParseError ? `proxy: ${e.message}` : 'proxy không đọc được')
+          }
+          proxyId =
+            this.proxies.findByEndpoint(input.type, input.host, input.port, input.username ?? null) ??
+            this.proxies.create(input).id
+        }
+        const lab = proxyId ? parseBool(pick(r, 'lab')) : true // không proxy ⇒ lab để mở được bằng IP máy
+        const created = this.profiles.create({
+          name: this.profiles.uniqueName(name),
+          groupId: groupName ? this.resolveGroup(groupName) : null,
+          proxyId,
+          tags: splitMulti(pick(r, 'tags', 'tag')),
+          startUrls: splitMulti(pick(r, 'starturls', 'url', 'urls')).filter((u) => /^https?:\/\//i.test(u)),
+          username: pick(r, 'username', 'user') || null,
+          notes: pick(r, 'notes', 'ghi chú', 'ghichu') || null,
+          platform: pick(r, 'platform', 'nền tảng', 'nentang') || null,
+          lab
+        })
+        audit(this.db, 'profile_import', created.id, { source: 'csv', hasProxy: !!proxyId })
+        imported++
+      } catch (err) {
+        warnings.push({ name: label, reason: err instanceof IsolaError && err.message !== err.code ? err.message : err instanceof IsolaError ? err.code : String(err) })
+      }
+    })
     return { imported, warnings }
   }
 

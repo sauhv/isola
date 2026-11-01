@@ -294,7 +294,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
         )}
         {bulkBusy && <Loader2 size={16} className="spin muted" />}
         <div className="spacer" />
-        <button disabled={bulkBusy} onClick={importProfiles}>
+        <button disabled={bulkBusy} onClick={importProfiles} title={t('pt.importTitle')}>
           <Download size={15} /> {t('pt.import')}
         </button>
         <button onClick={() => setBulkOpen(true)}>
