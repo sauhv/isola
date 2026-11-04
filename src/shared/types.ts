@@ -41,6 +41,8 @@ export interface CatalogOption {
 
 export interface FingerprintPreviewOptions {
   catalogId?: string
+  /** Kernel id để seed có chromeMajor khớp (CfT hay Chrome hệ thống). */
+  kernel?: string
   webrtc?: Seed['webrtc']
   language?: string
   timezone?: string
@@ -172,6 +174,9 @@ export interface KernelInfo {
   id: string
   major: number
   buildId: string
+  label: string
+  /** true = Chrome chính thức cài trên máy (không cần tải). */
+  system: boolean
   installed: boolean
 }
 

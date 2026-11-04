@@ -50,6 +50,7 @@ const profilePatch = z.object(profileFields).partial().strict()
 const previewOptions = z
   .object({
     catalogId: z.string().max(100).optional(),
+    kernel: z.string().max(100).optional(),
     webrtc: z.enum(['replace', 'disable']).optional(),
     language: z.string().max(20).optional(),
     timezone: z.string().max(64).optional()
@@ -299,8 +300,15 @@ export function registerIpc(s: Services): void {
     compatibleEntries(s.profiles.host).map((e) => ({ id: e.id, label: e.label, os: e.os, gpuVendor: e.gpuVendor }))
   )
   handle(Channels.fingerprintsPreview, [previewOptions], (opts) => {
+    const kernel = findSupportedKernel(opts?.kernel ?? DEFAULT_KERNEL_ID)
+    if (!kernel) throw new IsolaError('KERNEL_UNKNOWN')
     try {
-      return generateSeed(s.profiles.host, findSupportedKernel(DEFAULT_KERNEL_ID)!, opts ?? {})
+      return generateSeed(s.profiles.host, kernel, {
+        catalogId: opts?.catalogId,
+        webrtc: opts?.webrtc,
+        language: opts?.language,
+        timezone: opts?.timezone
+      })
     } catch (err) {
       if (err instanceof SeedError) throw new IsolaError('SEED_INVALID', err.message)
       throw err

@@ -24,6 +24,7 @@ addDict({
   'pf.secGeneral': ['Thông tin chung', 'General'],
   'pf.namePh': ['Tên profile', 'Profile name'],
   'pf.browser': ['Trình duyệt', 'Browser'],
+  'pf.browserLocked': ['Không đổi trình duyệt sau khi tạo profile', 'Browser cannot be changed after the profile is created'],
   'pf.notDownloaded': [' · chưa tải', ' · not downloaded'],
   'pf.os': ['Hệ điều hành', 'Operating system'],
   'pf.osTitle': ['Chỉ giả cùng hệ điều hành với máy đang chạy Isola', 'Only spoof the same OS as the machine running Isola'],

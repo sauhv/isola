@@ -94,6 +94,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
   const [fp, setFp] = useState<ProfileFingerprint | null>(profile?.fingerprint ?? null)
   const [fpDirty, setFpDirty] = useState(false)
   const [fpBusy, setFpBusy] = useState(false)
+  const [kernel, setKernel] = useState(profile?.kernel ?? '')
 
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -142,6 +143,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
         setProxies(p)
         setCatalog(c)
         setKernels(k)
+        setKernel((cur) => cur || k[0]?.id || '')
         if (!profile && p.length === 0) setProxyMode('new')
       })
       .catch((e) => setError(e.message))
@@ -163,11 +165,11 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
     }
   }, [])
 
-  async function newFingerprint(catalogId?: string, markDirty = true) {
+  async function newFingerprint(catalogId?: string, markDirty = true, kernelId?: string) {
     setFpBusy(true)
     try {
       const next = await call(
-        isola().fingerprints.preview({ catalogId, webrtc: seed?.webrtc, timezone: seed?.timezone, language: seed?.language })
+        isola().fingerprints.preview({ catalogId, kernel: (kernelId ?? kernel) || undefined, webrtc: seed?.webrtc, timezone: seed?.timezone, language: seed?.language })
       )
       setFp(next)
       if (markDirty) setFpDirty(true)
@@ -258,7 +260,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
         await call(isola().profiles.update(profile.id, fields))
         if (fpDirty) await call(isola().profiles.setFingerprint(profile.id, fp))
       } else {
-        await call(isola().profiles.create({ ...fields, fingerprint: fp }))
+        await call(isola().profiles.create({ ...fields, kernel: kernel || undefined, fingerprint: fp }))
       }
       onSaved()
     } catch (e) {
@@ -346,10 +348,20 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
             </div>
             <div className="row-field">
               <span className="row-label">{t('pf.browser')}</span>
-              <select disabled style={{ width: 280 }}>
+              <select
+                style={{ width: 280 }}
+                value={kernel}
+                disabled={editing || fpBusy}
+                title={editing ? t('pf.browserLocked') : undefined}
+                onChange={(e) => {
+                  setKernel(e.target.value)
+                  newFingerprint(fp?.catalogId, true, e.target.value)
+                }}
+              >
                 {kernels.map((k) => (
-                  <option key={k.id}>
-                    Chrome for Testing {k.major}{k.installed ? '' : t('pf.notDownloaded')}
+                  <option key={k.id} value={k.id}>
+                    {k.label}
+                    {k.installed ? '' : t('pf.notDownloaded')}
                   </option>
                 ))}
               </select>

@@ -61,6 +61,7 @@ describe('seed', () => {
       id: 'x',
       major,
       buildId: `${major}.0.0.0`,
+      label: `x ${major}`,
       grease: { brand, version }
     })
     // Giá trị đo trên Chrome thật.
