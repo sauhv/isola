@@ -156,6 +156,8 @@ export interface SettingsInfo {
   packaged: boolean
   dataRoot: string
   backups: BackupInfo[]
+  /** Bản đã tải xong đang chờ khởi động lại để cài (null nếu chưa có). */
+  pendingUpdate: string | null
 }
 export type UpdateStatus = 'dev' | 'available' | 'latest' | 'error'
 
@@ -332,6 +334,7 @@ export interface IsolaApi {
     openBackupsFolder(): Promise<Result<null>>
     backupNow(): Promise<Result<{ name: string; backups: BackupInfo[] }>>
     checkUpdate(): Promise<Result<UpdateStatus>>
+    installUpdate(): Promise<Result<null>>
   }
   proxies: {
     list(): Promise<Result<Proxy[]>>

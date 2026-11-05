@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { Result } from '../../shared/types'
 import { backupNow, listBackupInfo, type Db } from '../db'
 import { paths } from '../paths'
-import { checkForUpdatesNow } from '../updater'
+import { checkForUpdatesNow, installPendingUpdate, pendingUpdateVersion } from '../updater'
 import { IsolaError } from '../errors'
 import { CookieParseError, parseCookies, type CookieParam } from '../engine/cookies'
 import { DEFAULT_KERNEL_ID, findSupportedKernel } from '../engine/kernels'
@@ -331,8 +331,10 @@ export function registerIpc(s: Services): void {
     version: app.getVersion(),
     packaged: app.isPackaged,
     dataRoot: s.dataRoot,
-    backups: listBackupInfo(paths.backups(s.dataRoot))
+    backups: listBackupInfo(paths.backups(s.dataRoot)),
+    pendingUpdate: pendingUpdateVersion()
   }))
+  handle(Channels.settingsInstallUpdate, [], () => (installPendingUpdate(), null))
   handle(Channels.settingsOpenData, [], async () => (await shell.openPath(s.dataRoot), null))
   handle(Channels.settingsOpenBackups, [], async () => {
     const { mkdirSync } = await import('node:fs')

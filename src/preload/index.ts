@@ -51,7 +51,8 @@ const api: IsolaApi = {
     openDataFolder: () => invoke(Channels.settingsOpenData),
     openBackupsFolder: () => invoke(Channels.settingsOpenBackups),
     backupNow: () => invoke(Channels.settingsBackupNow),
-    checkUpdate: () => invoke(Channels.settingsCheckUpdate)
+    checkUpdate: () => invoke(Channels.settingsCheckUpdate),
+    installUpdate: () => invoke(Channels.settingsInstallUpdate)
   },
   kernels: {
     list: () => invoke(Channels.kernelsList),

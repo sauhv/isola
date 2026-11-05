@@ -91,6 +91,13 @@ export default function SettingsPage() {
             </button>
             {upd && <span className="muted">{updText[upd]}</span>}
           </div>
+          {info?.pendingUpdate && (
+            <div className="row-line" style={{ marginTop: 8 }}>
+              <button className="small primary" disabled={busy === 'install'} onClick={() => run('install', () => call(isola().settings.installUpdate()))}>
+                {t('set.installPending', { v: info.pendingUpdate })}
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Dữ liệu & sao lưu */}
