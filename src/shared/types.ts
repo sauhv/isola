@@ -158,6 +158,8 @@ export interface SettingsInfo {
   backups: BackupInfo[]
   /** Bản đã tải xong đang chờ khởi động lại để cài (null nếu chưa có). */
   pendingUpdate: string | null
+  /** Gắn tên profile vào tiêu đề cửa sổ trình duyệt. */
+  labelWindows: boolean
 }
 export type UpdateStatus = 'dev' | 'available' | 'latest' | 'error'
 
@@ -335,6 +337,7 @@ export interface IsolaApi {
     backupNow(): Promise<Result<{ name: string; backups: BackupInfo[] }>>
     checkUpdate(): Promise<Result<UpdateStatus>>
     installUpdate(): Promise<Result<null>>
+    setLabelWindows(on: boolean): Promise<Result<null>>
   }
   proxies: {
     list(): Promise<Result<Proxy[]>>

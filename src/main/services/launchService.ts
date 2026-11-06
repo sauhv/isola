@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Readable, Writable } from 'node:stream'
 import type { ProfileStatusEvent } from '../../shared/types'
-import type { Db } from '../db'
+import { getSetting, type Db } from '../db'
 import type { CookieParam } from '../engine/cookies'
 import { CdpPipe } from '../engine/cdpPipe'
 import { FingerprintController } from '../engine/fingerprintApply'
@@ -190,7 +190,9 @@ export class LaunchService extends EventEmitter {
       try {
         await Promise.race([cdp.send('Browser.getVersion'), spawnError])
         // Gắn fingerprint vào mọi tab/worker trước khi bất kỳ trang thật nào chạy.
-        const controller = new FingerprintController(cdp, fp)
+        // Gắn tên profile vào tiêu đề cửa sổ nếu người dùng bật (để biết cửa sổ nào là profile nào).
+        const labelWindows = getSetting(this.db, 'labelWindows') === '1'
+        const controller = new FingerprintController(cdp, fp, labelWindows ? `#${profile.serial} ${profile.name}` : undefined)
         await controller.start()
         const cookies = this.cookies?.pending(id)
         if (cookies?.length) {

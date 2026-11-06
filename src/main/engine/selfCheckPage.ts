@@ -52,7 +52,7 @@ export function renderSelfCheckPage(d: SelfCheckData): string {
 
   return `<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Isola · Self-check</title>
+<title>#${d.serial} ${esc(d.name)} · Isola</title>
 <style>
   :root{--bg:#141518;--panel:#1b1d22;--panel2:#22252c;--border:#2b2f37;--text:#e8eaed;--muted:#9aa0a8;--navy:#1e2f5f;--teal:#3f8a9c;--ok:#3fb950;--warn:#d29922}
   *{box-sizing:border-box}

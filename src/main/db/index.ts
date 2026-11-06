@@ -76,6 +76,17 @@ export function backupNow(db: Db, file: string, backupDir: string): string | nul
   return snapshot(db, file, backupDir)
 }
 
+/** Đọc một thiết lập (bảng settings key/value). null nếu chưa có. */
+export function getSetting(db: Db, key: string): string | null {
+  const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined
+  return r?.value ?? null
+}
+
+/** Ghi một thiết lập. */
+export function setSetting(db: Db, key: string, value: string): void {
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value)
+}
+
 /** Danh sách sao lưu (mới nhất trước) kèm thời điểm + kích thước. */
 export function listBackupInfo(backupDir: string): { name: string; at: string; size: number }[] {
   return listBackups(backupDir).map((p) => {

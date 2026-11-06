@@ -2,7 +2,7 @@ import { app, dialog, ipcMain, screen, shell, type BrowserWindow, type OpenDialo
 import { readFileSync, writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import type { Result } from '../../shared/types'
-import { backupNow, listBackupInfo, type Db } from '../db'
+import { backupNow, getSetting, listBackupInfo, setSetting, type Db } from '../db'
 import { paths } from '../paths'
 import { checkForUpdatesNow, installPendingUpdate, pendingUpdateVersion } from '../updater'
 import { IsolaError } from '../errors'
@@ -332,9 +332,11 @@ export function registerIpc(s: Services): void {
     packaged: app.isPackaged,
     dataRoot: s.dataRoot,
     backups: listBackupInfo(paths.backups(s.dataRoot)),
-    pendingUpdate: pendingUpdateVersion()
+    pendingUpdate: pendingUpdateVersion(),
+    labelWindows: getSetting(s.db, 'labelWindows') === '1'
   }))
   handle(Channels.settingsInstallUpdate, [], () => (installPendingUpdate(), null))
+  handle(Channels.settingsSetLabel, [z.boolean()], (on) => (setSetting(s.db, 'labelWindows', on ? '1' : '0'), null))
   handle(Channels.settingsOpenData, [], async () => (await shell.openPath(s.dataRoot), null))
   handle(Channels.settingsOpenBackups, [], async () => {
     const { mkdirSync } = await import('node:fs')

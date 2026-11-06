@@ -44,6 +44,12 @@ addDict({
   'set.backupCount': ['{n} bản sao lưu', '{n} backups'],
   'set.backupLatest': ['Mới nhất', 'Latest'],
   'set.backupDone': ['Đã sao lưu.', 'Backed up.'],
+  'set.browser': ['Trình duyệt profile', 'Profile browser'],
+  'set.labelWindows': ['Gắn tên profile vào tiêu đề cửa sổ', 'Add profile name to the window title'],
+  'set.labelWindowsNote': [
+    'Giúp biết cửa sổ nào thuộc profile nào (hiện [tên] trước tiêu đề mọi tab). Mặc định tắt vì website có thể đọc được tiêu đề — bật khi bạn ưu tiên dễ nhận biết hơn độ ẩn.',
+    'Shows which window belongs to which profile ([name] before every tab title). Off by default because sites can read the title — turn on when recognisability matters more than stealth.'
+  ],
   'set.transfer': ['Nhập / xuất toàn bộ', 'Import / export all'],
   'set.exportAll': ['Xuất tất cả profile', 'Export all profiles'],
   'set.noProfiles': ['Chưa có profile nào để xuất.', 'No profiles to export.'],

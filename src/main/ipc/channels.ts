@@ -8,6 +8,7 @@ export const Channels = {
   settingsBackupNow: 'settings:backup-now',
   settingsCheckUpdate: 'settings:check-update',
   settingsInstallUpdate: 'settings:install-update',
+  settingsSetLabel: 'settings:set-label',
   profilesList: 'profiles:list',
   profilesCreate: 'profiles:create',
   profilesUpdate: 'profiles:update',

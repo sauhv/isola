@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { isHealthy, loadMigrations, migrate, openDatabase } from '../src/main/db'
+import { getSetting, isHealthy, loadMigrations, migrate, openDatabase, setSetting } from '../src/main/db'
 import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
@@ -103,6 +103,16 @@ describe('db', () => {
     expect(n).toBeGreaterThanOrEqual(200)
     // Transaction 200 dòng là nguyên tử: không bao giờ còn lô dở.
     expect(n % 200).toBe(0)
+    db.close()
+  })
+
+  it('getSetting/setSetting: ghi đọc theo key, ghi đè', () => {
+    const db = openDatabase(join(dir, 'isola.db'))
+    expect(getSetting(db, 'labelWindows')).toBeNull()
+    setSetting(db, 'labelWindows', '1')
+    expect(getSetting(db, 'labelWindows')).toBe('1')
+    setSetting(db, 'labelWindows', '0')
+    expect(getSetting(db, 'labelWindows')).toBe('0')
     db.close()
   })
 

@@ -128,6 +128,26 @@ export default function SettingsPage() {
           )}
         </section>
 
+        {/* Trình duyệt profile */}
+        <section>
+          <h3 className="set-h">{t('set.browser')}</h3>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={!!info?.labelWindows}
+              onChange={(e) => {
+                const on = e.target.checked
+                setInfo((i) => (i ? { ...i, labelWindows: on } : i))
+                run('label', () => call(isola().settings.setLabelWindows(on)))
+              }}
+            />
+            {t('set.labelWindows')}
+          </label>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            {t('set.labelWindowsNote')}
+          </div>
+        </section>
+
         {/* Nhập / xuất toàn bộ */}
         <section>
           <h3 className="set-h">{t('set.transfer')}</h3>

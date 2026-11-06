@@ -3,6 +3,22 @@ import { buildPageScript, buildWorkerScript } from './fingerprintScript'
 import type { EffectiveFingerprint } from './seed'
 
 const PAGE_TYPES = new Set(['page', 'iframe'])
+
+/**
+ * Script gắn "[tên profile] " vào document.title, để biết cửa sổ thuộc profile nào.
+ * Dùng MutationObserver vì <title> tĩnh do parser đặt không đi qua setter JS.
+ */
+function buildTitleScript(label: string): string {
+  const prefix = JSON.stringify(`[${label}] `)
+  return `(function(){try{
+    var P=${prefix};var busy=false;
+    function apply(){if(busy)return;var t=document.title||'';if(t.indexOf(P)!==0){busy=true;try{document.title=P+t}catch(e){}busy=false;}}
+    try{new MutationObserver(apply).observe(document.documentElement,{subtree:true,childList:true,characterData:true});}catch(e){}
+    document.addEventListener('DOMContentLoaded',apply);
+    document.addEventListener('readystatechange',apply);
+    apply();
+  }catch(e){}})();`
+}
 const WORKER_TYPES = new Set(['worker', 'shared_worker', 'service_worker'])
 
 /**
@@ -21,12 +37,17 @@ export class FingerprintController {
   /** Tab đã có trước khi gắn (Chrome khôi phục phiên cũ): đã tải mà chưa có fingerprint. */
   private readonly preexisting: { sessionId: string; url: string }[] = []
 
+  /** Script gắn tên profile vào document.title (chỉ khi người dùng bật ở Cài đặt). */
+  private readonly titleScript: string | null
+
   constructor(
     private readonly cdp: CdpPipe,
-    private readonly fp: EffectiveFingerprint
+    private readonly fp: EffectiveFingerprint,
+    titleLabel?: string
   ) {
     this.pageScript = buildPageScript(fp)
     this.workerScript = buildWorkerScript(fp)
+    this.titleScript = titleLabel ? buildTitleScript(titleLabel) : null
     cdp.on('event', (method: string, params: any) => {
       if (method === 'Target.attachedToTarget') this.track(this.onAttached(params.sessionId, params.targetInfo, params.waitingForDebugger))
       if (method === 'Target.detachedFromTarget') this.pages.delete(params.sessionId)
@@ -86,6 +107,7 @@ export class FingerprintController {
         // runImmediately: tab tạo bằng createTarget/popup đang giữ document đầu tiên; thiếu cờ này
         // script chỉ chạy từ lần điều hướng sau (đo trên CfT 155). Mỗi document vẫn chỉ chạy một lần.
         await send('Page.addScriptToEvaluateOnNewDocument', { source: this.pageScript, runImmediately: true })
+        if (this.titleScript) await send('Page.addScriptToEvaluateOnNewDocument', { source: this.titleScript, runImmediately: true })
         await Promise.all([
           send('Emulation.setUserAgentOverride', this.userAgentOverride),
           send('Emulation.setTimezoneOverride', { timezoneId: this.fp.timezone }),

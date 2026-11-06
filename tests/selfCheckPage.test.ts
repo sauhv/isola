@@ -38,6 +38,8 @@ describe('renderSelfCheckPage', () => {
     // Extension áp cho profile hiển thị
     expect(html).toContain('uBlock Origin Lite')
     expect(html).toContain('data-i="secExt"')
+    // Tiêu đề tab tự kiểm = tên profile (để biết cửa sổ nào là profile nào)
+    expect(html).toContain('<title>#7 Acc 1 · Isola</title>')
   })
 
   it('escape dữ liệu người dùng để không chèn được mã', () => {
