@@ -82,6 +82,12 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
   const [notes, setNotes] = useState(profile?.notes ?? '')
   const [cookies, setCookies] = useState('')
 
+  // ---- cookie đã tự sao lưu (giống AdsPower) ----
+  const [cookieBackup, setCookieBackup] = useState<{ count: number; updatedAt: string; json: string } | null>(null)
+  const [cbShown, setCbShown] = useState(false)
+  const [cbBusy, setCbBusy] = useState(false)
+  const [cbCopied, setCbCopied] = useState(false)
+
   // ---- proxy ----
   const [proxyMode, setProxyMode] = useState<ProxyMode>(profile ? (profile.proxyId ? 'saved' : 'none') : 'saved')
   const [proxyId, setProxyId] = useState(profile?.proxyId ?? '')
@@ -148,8 +154,33 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
       })
       .catch((e) => setError(e.message))
     if (!profile?.fingerprint) newFingerprint(undefined, !!profile)
+    if (profile) call(isola().profiles.cookieBackup(profile.id)).then(setCookieBackup).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function syncCookiesNow() {
+    if (!profile) return
+    setCbBusy(true)
+    try {
+      await call(isola().profiles.syncCookies(profile.id))
+      setCookieBackup(await call(isola().profiles.cookieBackup(profile.id)))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setCbBusy(false)
+    }
+  }
+
+  async function copyCookieBackup() {
+    if (!cookieBackup) return
+    try {
+      await navigator.clipboard.writeText(cookieBackup.json)
+      setCbCopied(true)
+      setTimeout(() => setCbCopied(false), 1500)
+    } catch {
+      /* clipboard bị chặn: bỏ qua */
+    }
+  }
 
   // Không proxy thì bắt buộc là profile lab.
   const effectiveLab = proxyMode === 'none' ? true : lab
@@ -445,6 +476,37 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                 </span>
               </div>
             </div>
+            {editing && (
+              <div className="row-field top">
+                <span className="row-label">{t('pf.cookieCurrent')}</span>
+                <div>
+                  <div className="inline-fields" style={{ flexWrap: 'nowrap', alignItems: 'center', gap: 8 }}>
+                    <span className="muted" style={{ flex: 1 }}>
+                      {cookieBackup
+                        ? t('pf.cookieBackupInfo', { n: cookieBackup.count, t: new Date(cookieBackup.updatedAt).toLocaleString() })
+                        : t('pf.cookieBackupNone')}
+                    </span>
+                    {cookieBackup && (
+                      <>
+                        <button className="small ghost" onClick={() => setCbShown((v) => !v)}>
+                          {cbShown ? t('pf.cookieHide') : t('pf.cookieView')}
+                        </button>
+                        <button className="small ghost" onClick={copyCookieBackup}>
+                          {cbCopied ? t('pf.cookieCopied') : t('pf.cookieCopy')}
+                        </button>
+                      </>
+                    )}
+                    <button className="small" disabled={cbBusy} onClick={syncCookiesNow} title={t('pf.cookieSyncHint')}>
+                      {cbBusy && <Loader2 size={13} className="spin" />} {t('pf.cookieSyncNow')}
+                    </button>
+                  </div>
+                  {cbShown && cookieBackup && (
+                    <textarea readOnly rows={5} value={cookieBackup.json} spellCheck={false} className="mono small-text" style={{ width: '100%', marginTop: 6 }} />
+                  )}
+                  <span className="hint">{t('pf.cookieSyncHint')}</span>
+                </div>
+              </div>
+            )}
             <div className="row-field top">
               <span className="row-label">{t('pf.notes')}</span>
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />

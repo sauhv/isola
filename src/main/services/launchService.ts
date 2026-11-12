@@ -42,7 +42,12 @@ type Running = {
   cdp: CdpPipe
   relay: Relay | null
   exited: Promise<void>
+  /** Hẹn giờ tự sao lưu cookie trong lúc profile chạy. */
+  cookieTimer: ReturnType<typeof setInterval> | null
 }
+
+/** Khoảng thời gian tự chụp cookie khi profile đang chạy (phòng khi người dùng đóng cửa sổ trực tiếp). */
+const COOKIE_BACKUP_INTERVAL_MS = 120_000
 
 export interface LaunchOptions {
   /** Cờ thêm cho mọi lần spawn. Chỉ test dùng (ví dụ `--headless=new`). */
@@ -222,8 +227,15 @@ export class LaunchService extends EventEmitter {
         throw err instanceof IsolaError ? err : new IsolaError('LAUNCH_FAILED', String(err))
       }
 
-      const entry: Running = { proc, pid: proc.pid!, cdp, relay, exited }
+      const entry: Running = { proc, pid: proc.pid!, cdp, relay, exited, cookieTimer: null }
       relay = null // từ đây entry giữ relay và đóng nó khi process thoát
+      // Tự sao lưu cookie định kỳ để form hiển thị cookie mới nhất kể cả khi đóng cửa sổ trực tiếp.
+      if (this.cookies) {
+        entry.cookieTimer = setInterval(() => {
+          this.backupCookies(id).catch(() => {})
+        }, COOKIE_BACKUP_INTERVAL_MS)
+        entry.cookieTimer.unref?.()
+      }
       this.running.set(id, entry)
       this.profiles.setStatus(id, 'running')
       audit(this.db, 'open', id, {
@@ -238,6 +250,7 @@ export class LaunchService extends EventEmitter {
       this.emitStatus({ id, status: 'running' })
 
       proc.once('exit', (code, signal) => {
+        if (entry.cookieTimer) clearInterval(entry.cookieTimer)
         entry.relay?.close().catch(() => {})
         if (this.running.get(id) === entry) this.running.delete(id)
         this.profiles.setStatus(id, 'idle')
@@ -255,10 +268,25 @@ export class LaunchService extends EventEmitter {
     }
   }
 
+  /**
+   * Sao lưu cookie hiện tại của profile đang chạy vào DB (giống AdsPower: cookie tự xuất sau khi dùng).
+   * Best-effort: lỗi đọc không làm hỏng luồng mở/đóng. Không ghi nội dung cookie ra log.
+   */
+  async backupCookies(id: string): Promise<void> {
+    if (!this.cookies) return
+    const r = this.running.get(id)
+    if (!r || r.cdp.isClosed) return
+    const { cookies } = await r.cdp.send<{ cookies: CookieParam[] }>('Storage.getCookies')
+    this.cookies.saveBackup(id, cookies)
+  }
+
   /** Đóng êm qua CDP để Chrome ghi cookie xuống đĩa; quá 5 giây thì kill cả cây process. */
   async stop(id: string): Promise<void> {
     const r = this.running.get(id)
     if (!r) return
+    if (r.cookieTimer) clearInterval(r.cookieTimer)
+    // Chụp cookie lần cuối trước khi đóng (CDP còn mở).
+    await this.backupCookies(id).catch(() => {})
     r.cdp.send('Browser.close', {}, undefined, STOP_GRACE_MS).catch(() => {})
     const graceful = await Promise.race([r.exited.then(() => true), delay(STOP_GRACE_MS).then(() => false)])
     if (!graceful) {

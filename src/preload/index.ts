@@ -27,6 +27,8 @@ const api: IsolaApi = {
     createMany: (input) => invoke(Channels.profilesCreateMany, input),
     arrangeWindows: (ids) => invoke(Channels.profilesArrange, ids),
     exportCookies: (id) => invoke(Channels.profilesExportCookies, id),
+    cookieBackup: (id) => invoke(Channels.profilesCookieBackup, id),
+    syncCookies: (id) => invoke(Channels.profilesSyncCookies, id),
     exportProfiles: (ids) => invoke(Channels.profilesExport, ids),
     importProfiles: () => invoke(Channels.profilesImport)
   },

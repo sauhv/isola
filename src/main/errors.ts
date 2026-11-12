@@ -4,6 +4,7 @@ export type ErrorCode =
   | 'NAME_TAKEN'
   | 'INVALID_INPUT'
   | 'ALREADY_RUNNING'
+  | 'NOT_RUNNING'
   | 'PROFILE_RUNNING'
   | 'ARCHIVED'
   | 'NOT_ARCHIVED'

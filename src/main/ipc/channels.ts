@@ -22,6 +22,8 @@ export const Channels = {
   profilesCreateMany: 'profiles:create-many',
   profilesArrange: 'profiles:arrange',
   profilesExportCookies: 'profiles:export-cookies',
+  profilesCookieBackup: 'profiles:cookie-backup',
+  profilesSyncCookies: 'profiles:sync-cookies',
   profilesExport: 'profiles:export',
   profilesImport: 'profiles:import',
   fingerprintsCatalog: 'fingerprints:catalog',

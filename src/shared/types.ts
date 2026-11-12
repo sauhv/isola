@@ -309,6 +309,10 @@ export interface IsolaApi {
     arrangeWindows(ids: string[]): Promise<Result<number>>
     /** Xuất cookie của profile đang chạy ra file JSON. */
     exportCookies(id: string): Promise<Result<{ saved: boolean; count: number }>>
+    /** Cookie đã tự sao lưu của profile (giống AdsPower). null nếu chưa có. */
+    cookieBackup(id: string): Promise<Result<{ count: number; updatedAt: string; json: string } | null>>
+    /** Chụp cookie ngay từ profile đang chạy và lưu lại. */
+    syncCookies(id: string): Promise<Result<{ count: number; updatedAt: string } | null>>
     /** Xuất các profile đã chọn ra file .isola (cấu hình + fingerprint + proxy + cookie). */
     exportProfiles(ids: string[]): Promise<Result<{ saved: boolean; count: number }>>
     /** Nhập profile từ file .isola do người dùng chọn. null nếu người dùng hủy hộp thoại. */

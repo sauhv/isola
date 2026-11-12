@@ -245,6 +245,16 @@ export function registerIpc(s: Services): void {
     const area = screen.getPrimaryDisplay().workAreaSize
     return s.launcher.arrangeWindows(ids, area)
   })
+  handle(Channels.profilesCookieBackup, [id], (pid) => {
+    s.profiles.get(pid) // ném NOT_FOUND nếu không có
+    const b = s.cookies.backup(pid)
+    return b ? { count: b.count, updatedAt: b.updatedAt, json: JSON.stringify(b.cookies, null, 2) } : null
+  })
+  handle(Channels.profilesSyncCookies, [id], async (pid) => {
+    if (!s.launcher.isRunning(pid)) throw new IsolaError('NOT_RUNNING', 'Profile chưa chạy')
+    await s.launcher.backupCookies(pid)
+    return s.cookies.backupInfo(pid)
+  })
   handle(Channels.profilesExportCookies, [id], async (pid) => {
     const cookies = await s.launcher.exportCookies(pid)
     const safe = s.profiles.get(pid).name.replace(/[^w.-]+/g, '_').slice(0, 40)
