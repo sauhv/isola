@@ -25,7 +25,8 @@ export function testSecretBox(): SecretBox {
 }
 
 export const fakeGeo: GeoLookup = {
-  lookup: (ip) => (ip === '203.0.113.7' ? { country: 'VN', city: 'Hanoi', timezone: 'Asia/Ho_Chi_Minh' } : null)
+  lookup: (ip) =>
+    ip === '203.0.113.7' ? { country: 'VN', city: 'Hanoi', timezone: 'Asia/Ho_Chi_Minh', latitude: 21.03, longitude: 105.85 } : null
 }
 
 /** Server đích local: đếm số lần bị gọi trực tiếp (dùng để phát hiện rò rỉ ra ngoài proxy). */

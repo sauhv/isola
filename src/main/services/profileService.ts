@@ -310,6 +310,7 @@ export class ProfileService {
       this.db.prepare('DELETE FROM profile_tags WHERE profile_id = ?').run(id)
       this.db.prepare('DELETE FROM cookies_import WHERE profile_id = ?').run(id)
       this.db.prepare('DELETE FROM cookies_backup WHERE profile_id = ?').run(id)
+      this.db.prepare('DELETE FROM profile_ext_keys WHERE profile_id = ?').run(id)
       this.db.prepare("DELETE FROM extension_targets WHERE kind = 'profile' AND target_id = ?").run(id)
       this.db.prepare('DELETE FROM profiles WHERE id = ?').run(id)
       this.db.prepare('DELETE FROM fingerprints WHERE id = ?').run(fingerprint_id)

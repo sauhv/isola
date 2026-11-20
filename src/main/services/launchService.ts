@@ -32,6 +32,8 @@ export interface LaunchDeps {
   extensions: ExtensionService
   /** Cookie nhập lúc tạo profile, áp ở lần mở kế tiếp. */
   cookies?: CookieService
+  /** Tra toạ độ theo IP proxy để override geolocation (không có thì bỏ qua). */
+  geo?: { lookup(ip: string): { latitude: number | null; longitude: number | null } | null }
 }
 
 const STOP_GRACE_MS = 5_000
@@ -69,6 +71,7 @@ export class LaunchService extends EventEmitter {
   private readonly proxies: ProxyService
   private readonly extensions: ExtensionService
   private readonly cookies: CookieService | undefined
+  private readonly geo: LaunchDeps['geo']
 
   constructor(
     deps: LaunchDeps,
@@ -82,6 +85,7 @@ export class LaunchService extends EventEmitter {
     this.proxies = deps.proxies
     this.extensions = deps.extensions
     this.cookies = deps.cookies
+    this.geo = deps.geo
   }
 
   isRunning(id: string): boolean {
@@ -109,7 +113,9 @@ export class LaunchService extends EventEmitter {
       throw new IsolaError('KERNEL_MISMATCH', 'kernel lệch catalog')
     }
     // Chrome tách danh sách --load-extension bằng dấu phẩy, nên đường dẫn có dấu phẩy sẽ hỏng.
-    const extensionDirs = this.extensions.dirsForProfile(id)
+    // Khi bật "ID extension riêng mỗi profile": dùng bản sao có key riêng để ID khác nhau giữa profile.
+    const isolateExt = getSetting(this.db, 'isolateExtId') === '1'
+    const extensionDirs = isolateExt ? this.extensions.isolatedDirsForProfile(id) : this.extensions.dirsForProfile(id)
     if (extensionDirs.some((d) => d.includes(','))) {
       throw new IsolaError('EXT_PATH_INVALID', 'Đường dẫn dữ liệu Isola chứa dấu phẩy')
     }
@@ -201,7 +207,15 @@ export class LaunchService extends EventEmitter {
         // Gắn fingerprint vào mọi tab/worker trước khi bất kỳ trang thật nào chạy.
         // Gắn tên profile vào tiêu đề cửa sổ nếu người dùng bật (để biết cửa sổ nào là profile nào).
         const labelWindows = getSetting(this.db, 'labelWindows') === '1'
-        const controller = new FingerprintController(cdp, fp, labelWindows ? `#${profile.serial} ${profile.name}` : undefined)
+        // Geolocation khớp IP proxy (chỉ profile production có proxy + tra được toạ độ).
+        let geolocation: { latitude: number; longitude: number; accuracy: number } | null = null
+        if (!profile.lab && proxyIp && this.geo) {
+          const g = this.geo.lookup(proxyIp)
+          if (g && typeof g.latitude === 'number' && typeof g.longitude === 'number') {
+            geolocation = { latitude: g.latitude, longitude: g.longitude, accuracy: 50 }
+          }
+        }
+        const controller = new FingerprintController(cdp, fp, labelWindows ? `#${profile.serial} ${profile.name}` : undefined, geolocation)
         await controller.start()
         const cookies = this.cookies?.pending(id)
         if (cookies?.length) {

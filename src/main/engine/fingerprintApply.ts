@@ -10,11 +10,15 @@ const PAGE_TYPES = new Set(['page', 'iframe'])
  */
 function buildTitleScript(label: string): string {
   const prefix = JSON.stringify(`[${label}] `)
+  // Quan sát HẸP chỉ <head> (nơi <title> và nội dung của nó đổi), không phải toàn bộ DOM — tránh
+  // callback chạy theo mọi thay đổi giao diện trên trang nặng (tốn hiệu năng, dễ lộ).
   return `(function(){try{
     var P=${prefix};var busy=false;
     function apply(){if(busy)return;var t=document.title||'';if(t.indexOf(P)!==0){busy=true;try{document.title=P+t}catch(e){}busy=false;}}
-    try{new MutationObserver(apply).observe(document.documentElement,{subtree:true,childList:true,characterData:true});}catch(e){}
-    document.addEventListener('DOMContentLoaded',apply);
+    function watch(){var head=document.head||document.getElementsByTagName('head')[0];
+      if(head){try{new MutationObserver(apply).observe(head,{subtree:true,childList:true,characterData:true});}catch(e){}}
+      apply();}
+    if(document.head)watch();else document.addEventListener('DOMContentLoaded',watch);
     document.addEventListener('readystatechange',apply);
     apply();
   }catch(e){}})();`
@@ -43,7 +47,9 @@ export class FingerprintController {
   constructor(
     private readonly cdp: CdpPipe,
     private readonly fp: EffectiveFingerprint,
-    titleLabel?: string
+    titleLabel?: string,
+    /** Toạ độ theo IP proxy để navigator.geolocation khớp IP (null = dùng thật). */
+    private readonly geolocation?: { latitude: number; longitude: number; accuracy: number } | null
   ) {
     this.pageScript = buildPageScript(fp)
     this.workerScript = buildWorkerScript(fp)
@@ -113,6 +119,8 @@ export class FingerprintController {
           send('Emulation.setTimezoneOverride', { timezoneId: this.fp.timezone }),
           send('Emulation.setLocaleOverride', { locale: this.fp.language }),
           send('Emulation.setHardwareConcurrencyOverride', { hardwareConcurrency: this.fp.seed.hardware.cores }),
+          // Toạ độ theo IP proxy để geolocation không lệch với IP (không ép khi là profile lab/không toạ độ).
+          ...(this.geolocation ? [send('Emulation.setGeolocationOverride', this.geolocation)] : []),
           // iframe khác process và worker con của trang cũng phải dừng chờ.
           send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true })
         ])

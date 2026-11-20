@@ -168,6 +168,8 @@ export interface SettingsInfo {
   pendingUpdate: string | null
   /** Gắn tên profile vào tiêu đề cửa sổ trình duyệt. */
   labelWindows: boolean
+  /** ID extension riêng cho mỗi profile (chống liên kết chéo). */
+  isolateExtId: boolean
 }
 export type UpdateStatus = 'dev' | 'available' | 'latest' | 'error'
 
@@ -247,6 +249,8 @@ export interface GeoInfo {
   country: string | null
   city: string | null
   timezone: string | null
+  latitude: number | null
+  longitude: number | null
 }
 
 export interface GeoStatus {
@@ -350,6 +354,7 @@ export interface IsolaApi {
     checkUpdate(): Promise<Result<UpdateStatus>>
     installUpdate(): Promise<Result<null>>
     setLabelWindows(on: boolean): Promise<Result<null>>
+    setIsolateExtId(on: boolean): Promise<Result<null>>
   }
   proxies: {
     list(): Promise<Result<Proxy[]>>

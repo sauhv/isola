@@ -203,7 +203,7 @@ if (!app.requestSingleInstanceLock()) {
       })
       extensions.reconcile()
       extensions.cleanup()
-      launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions, cookies })
+      launcher = new LaunchService({ db, dataRoot, profiles, kernels, proxies, extensions, cookies, geo })
       const transfer = new TransferService(db, profiles, proxies, cookies, launcher)
       // Trả null khi cửa sổ đã bị hủy: event (vd profile con thoát) đến sau khi đóng app
       // không được gọi webContents.send trên object đã destroyed (gây crash main process).

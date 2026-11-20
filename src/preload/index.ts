@@ -55,7 +55,8 @@ const api: IsolaApi = {
     backupNow: () => invoke(Channels.settingsBackupNow),
     checkUpdate: () => invoke(Channels.settingsCheckUpdate),
     installUpdate: () => invoke(Channels.settingsInstallUpdate),
-    setLabelWindows: (on) => invoke(Channels.settingsSetLabel, on)
+    setLabelWindows: (on) => invoke(Channels.settingsSetLabel, on),
+    setIsolateExtId: (on) => invoke(Channels.settingsSetIsolateExt, on)
   },
   kernels: {
     list: () => invoke(Channels.kernelsList),

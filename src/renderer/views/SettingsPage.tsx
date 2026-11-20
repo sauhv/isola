@@ -146,6 +146,22 @@ export default function SettingsPage() {
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
             {t('set.labelWindowsNote')}
           </div>
+          <label className="checkbox" style={{ marginTop: 12 }}>
+            <input
+              type="checkbox"
+              checked={!!info?.isolateExtId}
+              onChange={(e) => {
+                const on = e.target.checked
+                if (on && !confirm(t('set.isolateExtConfirm'))) return
+                setInfo((i) => (i ? { ...i, isolateExtId: on } : i))
+                run('isolateExt', () => call(isola().settings.setIsolateExtId(on)))
+              }}
+            />
+            {t('set.isolateExt')}
+          </label>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            {t('set.isolateExtNote')}
+          </div>
         </section>
 
         {/* Nhập / xuất toàn bộ */}

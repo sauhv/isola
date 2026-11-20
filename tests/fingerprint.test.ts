@@ -95,6 +95,11 @@ describe('seed', () => {
     expect(() => new Function(buildPageScript(fp))).not.toThrow()
     expect(() => new Function(buildWorkerScript(fp))).not.toThrow()
     expect(buildPageScript(fp)).not.toContain('Math.random')
+    // Stealth: có noise WebGL readPixels + ClientRects, và wrapper fail-safe (không làm sập trang).
+    const src = buildPageScript(fp)
+    expect(src).toContain('readPixels')
+    expect(src).toContain('getBoundingClientRect')
+    expect(src).toContain('return orig.apply(this, arguments)') // fail-safe trong method()
   })
 })
 

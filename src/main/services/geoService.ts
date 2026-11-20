@@ -52,7 +52,9 @@ export class GeoService implements GeoLookup {
     return {
       country: rec?.country?.iso_code ?? null,
       city: rec?.city?.names?.en ?? null,
-      timezone
+      timezone,
+      latitude: typeof lat === 'number' ? lat : null,
+      longitude: typeof lon === 'number' ? lon : null
     }
   }
 

@@ -9,6 +9,7 @@ export const Channels = {
   settingsCheckUpdate: 'settings:check-update',
   settingsInstallUpdate: 'settings:install-update',
   settingsSetLabel: 'settings:set-label',
+  settingsSetIsolateExt: 'settings:set-isolate-ext',
   profilesList: 'profiles:list',
   profilesCreate: 'profiles:create',
   profilesUpdate: 'profiles:update',

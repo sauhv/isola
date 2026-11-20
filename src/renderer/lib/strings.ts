@@ -50,6 +50,15 @@ addDict({
     'Giúp biết cửa sổ nào thuộc profile nào (hiện [tên] trước tiêu đề mọi tab). Mặc định tắt vì website có thể đọc được tiêu đề — bật khi bạn ưu tiên dễ nhận biết hơn độ ẩn.',
     'Shows which window belongs to which profile ([name] before every tab title). Off by default because sites can read the title — turn on when recognisability matters more than stealth.'
   ],
+  'set.isolateExt': ['ID extension riêng cho mỗi profile', 'Unique extension ID per profile'],
+  'set.isolateExtNote': [
+    'Mỗi profile nạp extension với ID khác nhau để website không liên kết chéo các profile qua cùng một extension. Tốn thêm dung lượng (mỗi profile một bản sao). Mặc định tắt.',
+    'Each profile loads extensions under a different ID so sites cannot link profiles via a shared extension. Uses extra disk (one copy per profile). Off by default.'
+  ],
+  'set.isolateExtConfirm': [
+    'Bật tính năng này sẽ đổi ID extension của các profile hiện có, nên dữ liệu trong extension (đăng nhập, cài đặt) của những profile đó sẽ bắt đầu lại từ đầu một lần. Tiếp tục?',
+    'Enabling this changes the extension ID of existing profiles, so extension data (logins, settings) in those profiles resets once. Continue?'
+  ],
   'set.transfer': ['Nhập / xuất toàn bộ', 'Import / export all'],
   'set.exportAll': ['Xuất tất cả profile', 'Export all profiles'],
   'set.noProfiles': ['Chưa có profile nào để xuất.', 'No profiles to export.'],

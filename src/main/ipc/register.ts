@@ -346,10 +346,12 @@ export function registerIpc(s: Services): void {
     dataRoot: s.dataRoot,
     backups: listBackupInfo(paths.backups(s.dataRoot)),
     pendingUpdate: pendingUpdateVersion(),
-    labelWindows: getSetting(s.db, 'labelWindows') === '1'
+    labelWindows: getSetting(s.db, 'labelWindows') === '1',
+    isolateExtId: getSetting(s.db, 'isolateExtId') === '1'
   }))
   handle(Channels.settingsInstallUpdate, [], () => (installPendingUpdate(), null))
   handle(Channels.settingsSetLabel, [z.boolean()], (on) => (setSetting(s.db, 'labelWindows', on ? '1' : '0'), null))
+  handle(Channels.settingsSetIsolateExt, [z.boolean()], (on) => (setSetting(s.db, 'isolateExtId', on ? '1' : '0'), null))
   handle(Channels.settingsOpenData, [], async () => (await shell.openPath(s.dataRoot), null))
   handle(Channels.settingsOpenBackups, [], async () => {
     const { mkdirSync } = await import('node:fs')

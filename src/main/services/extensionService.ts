@@ -1,6 +1,6 @@
-import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import { generateKeyPairSync, randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, extname, join } from 'node:path'
 import type { Extension, ExtensionPatch, ExtensionScope, ExtensionUpdateInfo } from '../../shared/types'
 import type { Db } from '../db'
 import { CrxError, parseCrx } from '../engine/crx'
@@ -9,6 +9,8 @@ import { IsolaError } from '../errors'
 
 const MAX_PACKAGE_BYTES = 300 * 1024 * 1024
 const STAGING = '.staging'
+// Bản sao extension riêng cho từng profile (ID khác nhau). Không phải thư mục extension thường.
+const ISOLATED = '_profiles'
 
 export interface ExtensionServiceOptions {
   /** Endpoint cập nhật của Chrome Web Store. Test thay bằng server local. */
@@ -162,6 +164,68 @@ export class ExtensionService {
     return rows.map((r) => join(this.root, r.dir)).filter((dir) => existsSync(join(dir, 'manifest.json')))
   }
 
+  /**
+   * Như dirsForProfile nhưng mỗi profile một BẢN SAO với `key` riêng → extension ID khác nhau giữa
+   * các profile (chống liên kết chéo). Khóa cố định (lưu DB) nên ID ổn định, dữ liệu extension không
+   * mất giữa các lần mở. Bản sao dựng lại khi phiên bản extension đổi. Lỗi dựng bản nào thì bỏ bản đó.
+   */
+  isolatedDirsForProfile(profileId: string): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT e.id, e.version, e.dir FROM extensions e JOIN profiles p ON p.id = ?
+         WHERE e.enabled = 1 AND (
+           e.scope = 'all'
+           OR (e.scope = 'groups' AND EXISTS (SELECT 1 FROM extension_targets t
+                 WHERE t.extension_id = e.id AND t.kind = 'group' AND t.target_id = p.group_id))
+           OR (e.scope = 'profiles' AND EXISTS (SELECT 1 FROM extension_targets t
+                 WHERE t.extension_id = e.id AND t.kind = 'profile' AND t.target_id = p.id))
+         ) ORDER BY e.name COLLATE NOCASE`
+      )
+      .all(profileId) as { id: string; version: string; dir: string }[]
+    const out: string[] = []
+    for (const r of rows) {
+      const shared = join(this.root, r.dir)
+      if (!existsSync(join(shared, 'manifest.json'))) continue
+      try {
+        out.push(this.buildIsolated(profileId, r.id, r.version, shared))
+      } catch {
+        // Bản sao lỗi (đĩa đầy, khóa file...) thì bỏ extension này, không chặn mở profile.
+      }
+    }
+    return out
+  }
+
+  /** Dựng (hoặc dùng lại) bản sao extension riêng cho profile với key riêng; trả đường dẫn. */
+  private buildIsolated(profileId: string, extId: string, version: string, sharedDir: string): string {
+    const dest = join(this.root, ISOLATED, profileId, extId)
+    const stamp = join(dest, '.isola-version')
+    if (existsSync(join(dest, 'manifest.json')) && existsSync(stamp) && readFileSync(stamp, 'utf8') === version) return dest
+    rmSync(dest, { recursive: true, force: true })
+    mkdirSync(dirname(dest), { recursive: true })
+    copyFolder(sharedDir, dest)
+    const mPath = join(dest, 'manifest.json')
+    const manifest = JSON.parse(readFileSync(mPath, 'utf8').replace(/^﻿/, '')) as Record<string, unknown>
+    manifest.key = this.profileExtKey(profileId, extId)
+    writeFileSync(mPath, JSON.stringify(manifest, null, 2))
+    writeFileSync(stamp, version)
+    return dest
+  }
+
+  /** Public key riêng của (profile, extension), sinh một lần rồi dùng lại (ID ổn định). */
+  private profileExtKey(profileId: string, extId: string): string {
+    const get = () =>
+      (this.db.prepare('SELECT key_b64 FROM profile_ext_keys WHERE profile_id = ? AND extension_id = ?').get(profileId, extId) as
+        | { key_b64: string }
+        | undefined)?.key_b64
+    const existing = get()
+    if (existing) return existing
+    const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({ type: 'spki', format: 'der' }).toString('base64')
+    this.db
+      .prepare('INSERT OR IGNORE INTO profile_ext_keys (profile_id, extension_id, key_b64) VALUES (?, ?, ?)')
+      .run(profileId, extId, key)
+    return get()! // lấy lại phòng khi có bản ghi chen ngang
+  }
+
   /** Extension (bật) áp cho một profile — cho trang tự kiểm hiển thị. */
   listForProfile(profileId: string): { name: string; version: string }[] {
     return this.db
@@ -221,7 +285,7 @@ export class ExtensionService {
       }
     }
     for (const id of listDirs(this.root)) {
-      if (id === STAGING) continue
+      if (id === STAGING || id === ISOLATED) continue
       const keep = current.get(id)
       if (!keep) {
         tryRm(join(this.root, id))
@@ -229,6 +293,20 @@ export class ExtensionService {
       }
       for (const v of listDirs(join(this.root, id))) {
         if (`${id}/${v}` !== keep) tryRm(join(this.root, id, v))
+      }
+    }
+    // Dọn bản sao riêng theo profile đã xóa / extension đã gỡ.
+    const base = join(this.root, ISOLATED)
+    if (existsSync(base)) {
+      const knownProfiles = new Set((this.db.prepare('SELECT id FROM profiles').all() as { id: string }[]).map((r) => r.id))
+      for (const pid of listDirs(base)) {
+        if (!knownProfiles.has(pid)) {
+          tryRm(join(base, pid))
+          continue
+        }
+        for (const extId of listDirs(join(base, pid))) {
+          if (!current.has(extId)) tryRm(join(base, pid, extId))
+        }
       }
     }
   }

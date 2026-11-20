@@ -237,6 +237,36 @@ if (window.AudioBuffer) {
   });
 }
 
+// --- WebGL Image: nhiễu readPixels (tất định theo seed, chỉ lật bit thấp vài byte) ---
+function webglNoise(data) {
+  if (!data || !data.length) return;
+  let h = (C.canvasNoise * 40503) >>> 0;
+  for (let i = 0; i < data.length; i += 131) h = Math.imul(h ^ data[i], 2246822519) >>> 0;
+  let s = h || 1;
+  const count = Math.max(1, Math.min(data.length, Math.floor(data.length / 500)));
+  for (let k = 0; k < count; k++) {
+    s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+    data[s % data.length] ^= 1;
+  }
+}
+for (const P of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+  if (!P) continue;
+  method(P.prototype, 'readPixels', (orig) => function (x, y, w, h, fmt, type, pixels) {
+    orig.apply(this, arguments);
+    webglNoise(pixels);
+  });
+}
+
+// --- ClientRects: lệch dưới một pixel, tất định theo seed (ổn định mỗi profile) ---
+{
+  const DX = ((C.canvasNoise % 97) / 97) * 1e-2;
+  const DY = ((C.canvasNoise % 89) / 89) * 1e-2;
+  method(Element.prototype, 'getBoundingClientRect', (orig) => function () {
+    const r = orig.apply(this, arguments);
+    return new DOMRect(r.x + DX, r.y + DY, r.width, r.height);
+  });
+}
+
 // --- mediaDevices: chỉ lọc bớt thiết bị thật theo seed (không bịa thiết bị giả) ---
 if (window.MediaDevices) {
   method(MediaDevices.prototype, 'enumerateDevices', (orig) => function () {

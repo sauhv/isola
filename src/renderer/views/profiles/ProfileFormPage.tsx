@@ -830,8 +830,8 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
                 {noiseSwitch('Canvas', true, true)}
                 {noiseSwitch('AudioContext', true, true)}
                 {noiseSwitch('Media device', true, true)}
-                {noiseSwitch('WebGL Image', false, false)}
-                {noiseSwitch('ClientRects', false, false)}
+                {noiseSwitch('WebGL Image', true, true)}
+                {noiseSwitch('ClientRects', true, true)}
                 {noiseSwitch('SpeechVoices', false, false)}
               </div>
             </div>

@@ -154,7 +154,7 @@ describe('db', () => {
 
     // mở lần đầu: tạo bản ghi + sao lưu
     let db = openDatabase(file, { backupDir })
-    db.pragma('user_version = 7')
+    db.pragma(`user_version = ${LATEST}`)
     db.exec("CREATE TABLE IF NOT EXISTS t (x TEXT)")
     db.prepare('INSERT INTO t (x) VALUES (?)').run('giữ-nguyên')
     db.close()
