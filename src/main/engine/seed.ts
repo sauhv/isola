@@ -62,7 +62,8 @@ export function generateSeed(host: HostInfo, kernel: SupportedKernel, opts: Seed
     audioNoise: randomInt(NOISE_MIN, NOISE_MAX + 1),
     fonts: [],
     webrtc: opts.webrtc ?? 'replace',
-    mediaDevices: { ...entry.mediaDevices }
+    mediaDevices: { ...entry.mediaDevices },
+    doNotTrack: null
   }
   return { catalogId: entry.id, seed }
 }
@@ -100,24 +101,33 @@ export function validateSeed(catalogId: string, seed: unknown, host?: HostInfo):
   if (!s || typeof s !== 'object' || s.version !== 1) throw new SeedError('Seed sai phiên bản')
   if (!kernelByMajor(s.chromeMajor)) throw new SeedError('kernel lệch catalog')
 
+  // screen/mediaDevices/os/UA vẫn khóa theo catalog để giữ nhất quán; CPU/RAM/WebGL cho tùy chỉnh
+  // (giống AdsPower) nhưng phải nằm trong khoảng hợp lệ.
   const expect: Partial<Seed> = {
     os: entry.os,
     userAgent: buildUserAgent(entry.os, s.chromeMajor),
     platform: entry.os === 'windows' ? 'Win32' : 'MacIntel',
     vendor: 'Google Inc.',
     screen: { ...entry.screen, colorDepth: 24 },
-    hardware: entry.hardware,
-    webgl: entry.webgl,
     fonts: [],
     mediaDevices: entry.mediaDevices
   }
   for (const [k, v] of Object.entries(expect)) {
     if (JSON.stringify((s as any)[k]) !== JSON.stringify(v)) throw new SeedError(`Seed lệch catalog ở trường ${k}`)
   }
+  if (!s.hardware || !Number.isInteger(s.hardware.cores) || s.hardware.cores < 1 || s.hardware.cores > 256)
+    throw new SeedError('Số nhân CPU phải là số nguyên 1–256')
+  if (!Number.isInteger(s.hardware.memoryGb) || s.hardware.memoryGb < 1 || s.hardware.memoryGb > 1024)
+    throw new SeedError('RAM phải là số nguyên 1–1024 GB')
+  if (!s.webgl || typeof s.webgl.vendor !== 'string' || !s.webgl.vendor.trim() || s.webgl.vendor.length > 256)
+    throw new SeedError('WebGL vendor không hợp lệ')
+  if (typeof s.webgl.renderer !== 'string' || !s.webgl.renderer.trim() || s.webgl.renderer.length > 256)
+    throw new SeedError('WebGL renderer không hợp lệ')
   for (const k of ['canvasNoise', 'audioNoise'] as const) {
     if (!Number.isInteger(s[k]) || s[k] < NOISE_MIN || s[k] > NOISE_MAX) throw new SeedError(`${k} phải là số nguyên 1–9999`)
   }
   if (s.webrtc !== 'replace' && s.webrtc !== 'disable') throw new SeedError('webrtc không hợp lệ')
+  if (s.doNotTrack != null && s.doNotTrack !== '1' && s.doNotTrack !== '0') throw new SeedError('doNotTrack không hợp lệ')
   if (!isValidLanguage(s.language)) throw new SeedError('Ngôn ngữ không hợp lệ')
   if (JSON.stringify(s.languages) !== JSON.stringify(languagesFor(s.language))) throw new SeedError('languages lệch language')
   if (!isValidTimezone(s.timezone)) throw new SeedError('Timezone không hợp lệ')
@@ -140,7 +150,8 @@ export function validateSeed(catalogId: string, seed: unknown, host?: HostInfo):
     audioNoise: s.audioNoise,
     fonts: [],
     webrtc: s.webrtc,
-    mediaDevices: { ...s.mediaDevices }
+    mediaDevices: { ...s.mediaDevices },
+    doNotTrack: s.doNotTrack ?? null
   }
 }
 

@@ -41,6 +41,10 @@ const TAB_LABEL = (tb: { key: string }, t: (k: string) => string) => (tb.key.inc
 const PLATFORMS = ['facebook', 'tiktok', 'google', 'amazon', 'shopee', 'instagram', 'twitter', 'telegram', 'discord']
 const LANGUAGES = ['en-US', 'en-GB', 'vi-VN', 'de-DE', 'fr-FR', 'es-ES', 'pt-BR', 'ja-JP', 'ko-KR', 'zh-CN', 'zh-TW', 'th-TH', 'id-ID', 'ru-RU', 'it-IT', 'nl-NL', 'pl-PL', 'tr-TR']
 const languagesFor = (l: string) => [...new Set([l, l.split('-')[0], 'en-US', 'en'])]
+const CPU_CORES = [2, 4, 6, 8, 12, 16, 24, 32]
+const RAM_GB = [4, 8, 16, 32, 64]
+const withCurrent = (opts: number[], cur: number | undefined) =>
+  [...new Set([...(cur ? [cur] : []), ...opts])].sort((a, b) => a - b)
 
 const splitLines = (s: string) =>
   s
@@ -81,6 +85,8 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
   const [username, setUsername] = useState(profile?.username ?? '')
   const [notes, setNotes] = useState(profile?.notes ?? '')
   const [cookies, setCookies] = useState('')
+  const [launchArgs, setLaunchArgs] = useState(profile?.launchArgs ?? '')
+  const [hwAccel, setHwAccel] = useState<'default' | 'off'>(profile?.hwAccel === 'off' ? 'off' : 'default')
 
   // ---- cookie đã tự sao lưu (giống AdsPower) ----
   const [cookieBackup, setCookieBackup] = useState<{ count: number; updatedAt: string; json: string } | null>(null)
@@ -285,6 +291,8 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
         username: username.trim() || null,
         notes: notes.trim() || null,
         lab: effectiveLab,
+        launchArgs: launchArgs.trim() || null,
+        hwAccel,
         ...(cookies.trim() ? { cookies } : {})
       }
       if (profile) {
@@ -722,12 +730,72 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               </span>
             </div>
             <div className="row-field">
-              <span className="row-label">{t('pf.hardware')}</span>
-              <span>{seed ? t('pf.hwValue', { c: seed.hardware.cores, m: seed.hardware.memoryGb }) : '—'}</span>
+              <span className="row-label">CPU</span>
+              <div className="inline-fields" style={{ flexWrap: 'nowrap', gap: 8 }}>
+                <select
+                  value={seed?.hardware.cores ?? ''}
+                  disabled={!seed}
+                  onChange={(e) => seed && patchSeed({ hardware: { ...seed.hardware, cores: Number(e.target.value) } })}
+                >
+                  {seed &&
+                    withCurrent(CPU_CORES, seed.hardware.cores).map((c) => (
+                      <option key={c} value={c}>
+                        {t('pf.cores', { c })}
+                      </option>
+                    ))}
+                </select>
+                <span className="row-label" style={{ textAlign: 'right' }}>
+                  RAM
+                </span>
+                <select
+                  value={seed?.hardware.memoryGb ?? ''}
+                  disabled={!seed}
+                  onChange={(e) => seed && patchSeed({ hardware: { ...seed.hardware, memoryGb: Number(e.target.value) } })}
+                >
+                  {seed &&
+                    withCurrent(RAM_GB, seed.hardware.memoryGb).map((m) => (
+                      <option key={m} value={m}>
+                        {m} GB
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+            <div className="row-field top">
+              <span className="row-label">WebGL</span>
+              <div style={{ flex: 1 }}>
+                <div className="inline-fields" style={{ flexWrap: 'nowrap' }}>
+                  <input
+                    value={seed?.webgl.vendor ?? ''}
+                    placeholder="Vendor"
+                    disabled={!seed}
+                    onChange={(e) => seed && patchSeed({ webgl: { ...seed.webgl, vendor: e.target.value } })}
+                    style={{ width: 200 }}
+                  />
+                  <input
+                    value={seed?.webgl.renderer ?? ''}
+                    placeholder="Renderer"
+                    disabled={!seed}
+                    onChange={(e) => seed && patchSeed({ webgl: { ...seed.webgl, renderer: e.target.value } })}
+                    className="mono small-text"
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
             </div>
             <div className="row-field">
-              <span className="row-label">WebGL</span>
-              <span className="small-text">{seed?.webgl.renderer ?? '—'}</span>
+              <span className="row-label">Do Not Track</span>
+              <div className="seg">
+                <button className={!seed?.doNotTrack ? 'active' : undefined} onClick={() => seed && patchSeed({ doNotTrack: null })}>
+                  {t('pf.default')}
+                </button>
+                <button className={seed?.doNotTrack === '1' ? 'active' : undefined} onClick={() => seed && patchSeed({ doNotTrack: '1' })}>
+                  {t('pf.on')}
+                </button>
+                <button className={seed?.doNotTrack === '0' ? 'active' : undefined} onClick={() => seed && patchSeed({ doNotTrack: '0' })}>
+                  {t('pf.off')}
+                </button>
+              </div>
             </div>
             <div className="row-field">
               <span className="row-label">WebGPU</span>
@@ -768,16 +836,34 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
               </div>
             </div>
             <div className="row-field">
+              <span className="row-label">{t('pf.hwAccel')}</span>
+              <div className="seg">
+                <button className={hwAccel === 'default' ? 'active' : undefined} onClick={() => setHwAccel('default')}>
+                  {t('pf.default')}
+                </button>
+                <button className={hwAccel === 'off' ? 'active' : undefined} onClick={() => setHwAccel('off')}>
+                  {t('pf.off')}
+                </button>
+              </div>
+            </div>
+            <div className="row-field top">
+              <span className="row-label">{t('pf.launchArgs')}</span>
+              <div>
+                <textarea
+                  rows={3}
+                  value={launchArgs}
+                  onChange={(e) => setLaunchArgs(e.target.value)}
+                  spellCheck={false}
+                  className="mono small-text"
+                  style={{ width: '100%' }}
+                  placeholder={t('pf.launchArgsPh')}
+                />
+                <span className="hint">{t('pf.launchArgsNote')}</span>
+              </div>
+            </div>
+            <div className="row-field">
               <span className="row-label">Extension</span>
               <span className="muted">{t('pf.extNote')}</span>
-            </div>
-            <div className="row-field">
-              <span className="row-label">{t('pf.dataSync')}</span>
-              <button onClick={() => notYet(t('pf.dataSync'))}>{t('pf.setup')}</button>
-            </div>
-            <div className="row-field">
-              <span className="row-label">{t('pf.browserSettings')}</span>
-              <button onClick={() => notYet(t('pf.browserSettings'))}>{t('pf.setup')}</button>
             </div>
             <div className="row-field">
               <span className="row-label">{t('pf.randomFp')}</span>

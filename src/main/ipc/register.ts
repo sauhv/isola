@@ -38,6 +38,9 @@ const profileFields = {
   notes: z.string().max(5000).nullable().optional(),
   platform: z.string().trim().max(50).nullable().optional(),
   lab: z.boolean().optional(),
+  // Cờ Chrome tự nhập (giống AdsPower Launch Args), tối đa ~4 KB.
+  launchArgs: z.string().max(4000).nullable().optional(),
+  hwAccel: z.enum(['default', 'off']).nullable().optional(),
   // Cookie dán vào: JSON hoặc Netscape, tối đa ~2 MB.
   cookies: z.string().max(2_000_000).optional()
 }

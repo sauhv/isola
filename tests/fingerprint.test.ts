@@ -45,12 +45,17 @@ describe('seed', () => {
     const { catalogId, seed } = generateSeed(win, kernel, { catalogId: 'win10-intel-uhd620-1920' })
     const bad = (patch: object, id = catalogId) => () => validateSeed(id, { ...seed, ...patch })
     expect(bad({ userAgent: seed.userAgent.replace('Windows NT 10.0', 'X11; Linux x86_64') })).toThrow(/userAgent/)
-    expect(bad({ webgl: { vendor: 'x', renderer: 'GeForce RTX 4090' } })).toThrow(/webgl/)
-    expect(bad({ hardware: { cores: 32, memoryGb: 64 } })).toThrow(/hardware/)
     expect(bad({ chromeMajor: 154 })).toThrow(/kernel lệch catalog/)
     expect(bad({ canvasNoise: 0 })).toThrow(/canvasNoise/)
     expect(bad({ timezone: 'Mars/Base' })).toThrow(/Timezone/)
     expect(bad({}, 'ios-iphone-15')).toThrow(/không có trong catalog/)
+    // CPU/RAM/WebGL/doNotTrack cho tùy chỉnh (giống AdsPower) nhưng vẫn kiểm khoảng hợp lệ.
+    expect(bad({ hardware: { cores: 0, memoryGb: 16 } })).toThrow(/CPU/)
+    expect(bad({ hardware: { cores: 8, memoryGb: 99999 } })).toThrow(/RAM/)
+    expect(bad({ webgl: { vendor: '', renderer: 'x' } })).toThrow(/vendor/)
+    expect(bad({ doNotTrack: 'yes' })).toThrow(/doNotTrack/)
+    // Giá trị tùy chỉnh hợp lệ được chấp nhận.
+    expect(() => validateSeed(catalogId, { ...seed, hardware: { cores: 32, memoryGb: 64 }, webgl: { vendor: 'Google Inc. (NVIDIA)', renderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)' }, doNotTrack: '1' })).not.toThrow()
     // Đúng catalog nhưng là thiết bị macOS trên máy Windows.
     const mac = generateSeed({ os: 'macos', gpuVendor: null }, kernel)
     expect(() => validateSeed(mac.catalogId, mac.seed, win)).toThrow(/không dùng được trên máy/)

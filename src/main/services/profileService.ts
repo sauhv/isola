@@ -47,6 +47,8 @@ type ProfileRow = {
   seed_json: string
   catalog_id: string
   lab: number
+  launch_args: string | null
+  hw_accel: string | null
   notes: string | null
   deleted_at: string | null
   created_at: string
@@ -57,7 +59,7 @@ const SELECT_PROFILE = `
   SELECT p.id, p.serial, p.name, p.group_id, g.name AS group_name, p.start_urls, p.username,
          p.status, p.kernel, p.proxy_id, x.host AS proxy_host, x.label AS proxy_label, x.type AS proxy_type,
          x.last_check_ip AS proxy_ip, x.last_check_country AS proxy_country, x.last_check_error AS proxy_error,
-         p.platform_label, p.lab, p.notes, p.deleted_at, p.created_at, p.updated_at,
+         p.platform_label, p.lab, p.launch_args, p.hw_accel, p.notes, p.deleted_at, p.created_at, p.updated_at,
          p.fingerprint_id, f.seed_json, f.catalog_id,
          (SELECT MAX(a.at) FROM audit_log a WHERE a.profile_id = p.id AND a.action = 'open') AS last_opened_at
   FROM profiles p
@@ -67,6 +69,12 @@ const SELECT_PROFILE = `
 
 function now(): string {
   return new Date().toISOString()
+}
+
+/** Chuẩn hóa cờ khởi động người dùng nhập: cắt khoảng trắng thừa, rỗng → null. Lưu nguyên văn. */
+function normalizeLaunchArgs(v: string | null | undefined): string | null {
+  const t = (v ?? '').trim()
+  return t ? t : null
 }
 
 function isUniqueViolation(err: unknown): boolean {
@@ -139,8 +147,8 @@ export class ProfileService {
           .run(fingerprintId, JSON.stringify(fp.seed), fp.catalogId, ts)
         this.db
           .prepare(
-            `INSERT INTO profiles (id, serial, name, group_id, proxy_id, start_urls, username, kernel, fingerprint_id, lab, notes, platform_label, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO profiles (id, serial, name, group_id, proxy_id, start_urls, username, kernel, fingerprint_id, lab, launch_args, hw_accel, notes, platform_label, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             id,
@@ -153,6 +161,8 @@ export class ProfileService {
             kernel,
             fingerprintId,
             input.lab ? 1 : 0,
+            normalizeLaunchArgs(input.launchArgs),
+            input.hwAccel === 'off' ? 'off' : null,
             input.notes ?? null,
             input.platform?.trim() || null,
             ts,
@@ -182,6 +192,8 @@ export class ProfileService {
       notes: src.notes,
       platform: src.platform,
       lab: src.lab,
+      launchArgs: src.launchArgs,
+      hwAccel: src.hwAccel,
       kernel: src.kernel
     })
   }
@@ -214,7 +226,7 @@ export class ProfileService {
     return { created, errors }
   }
 
-  /** Tên profile là UNIQUE; thêm hậu tố số cho tới khi chưa trùng. */
+  /** Tên profile cho phép trùng; hàm này chỉ để tự đặt tên khác khi nhân bản/tạo loạt (thêm hậu tố số). */
   uniqueName(base: string): string {
     const exists = (name: string) => !!this.db.prepare('SELECT 1 FROM profiles WHERE name = ?').get(name)
     if (!exists(base)) return base
@@ -247,6 +259,8 @@ export class ProfileService {
     if (patch.notes !== undefined) set('notes', patch.notes)
     if (patch.platform !== undefined) set('platform_label', patch.platform?.trim() || null)
     if (patch.lab !== undefined) set('lab', patch.lab ? 1 : 0)
+    if (patch.launchArgs !== undefined) set('launch_args', normalizeLaunchArgs(patch.launchArgs))
+    if (patch.hwAccel !== undefined) set('hw_accel', patch.hwAccel === 'off' ? 'off' : null)
     set('updated_at', now())
 
     try {
@@ -537,6 +551,8 @@ export class ProfileService {
         return seed.version === 1 ? { catalogId: r.catalog_id, seed } : null
       })(),
       lab: r.lab === 1,
+      launchArgs: r.launch_args,
+      hwAccel: (r.hw_accel as 'off' | null) ?? null,
       notes: r.notes,
       deletedAt: r.deleted_at,
       createdAt: r.created_at,

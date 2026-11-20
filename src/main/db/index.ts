@@ -138,9 +138,12 @@ export function openDatabase(file: string, opts: { backupDir?: string } = {}): D
   db.pragma('journal_mode = WAL')
   // FULL: an toàn hơn khi mất điện / bị kill đột ngột (đổi lại chậm hơn chút) — dữ liệu profile quan trọng.
   db.pragma('synchronous = FULL')
-  db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
+  // Tắt FK trong lúc migrate để migration có thể dựng lại bảng (vd bỏ ràng buộc UNIQUE mà SQLite
+  // không xóa trực tiếp được); id giữ nguyên nên quan hệ con không hỏng. Bật lại ngay sau đó.
+  db.pragma('foreign_keys = OFF')
   migrate(db)
+  db.pragma('foreign_keys = ON')
   // Chụp sao lưu sau khi mở lành, để lần sau có cái mà khôi phục.
   if (opts.backupDir) snapshot(db, file, opts.backupDir)
   return db

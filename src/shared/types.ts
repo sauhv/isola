@@ -25,6 +25,8 @@ export type Seed = {
   fonts: string[]
   webrtc: 'replace' | 'disable'
   mediaDevices: { cameras: number; mics: number }
+  /** navigator.doNotTrack: '1' bật, '0' tắt, null = mặc định (giữ như trình duyệt thật). */
+  doNotTrack?: '1' | '0' | null
 }
 
 export interface ProfileFingerprint {
@@ -88,6 +90,10 @@ export interface Profile {
   /** null với profile tạo trước Phase 4 (seed được sinh bù ở lần mở đầu tiên). */
   fingerprint: ProfileFingerprint | null
   lab: boolean
+  /** Cờ Chrome thêm do người dùng tự nhập (mỗi cờ một dòng/khoảng trắng). */
+  launchArgs: string | null
+  /** Tăng tốc phần cứng: 'off' = tắt GPU (--disable-gpu); null/'default' = để nguyên. */
+  hwAccel: 'default' | 'off' | null
   notes: string | null
   deletedAt: string | null
   createdAt: string
@@ -111,6 +117,8 @@ export interface ProfileInput {
   notes?: string | null
   platform?: string | null
   lab?: boolean
+  launchArgs?: string | null
+  hwAccel?: 'default' | 'off' | null
   kernel?: string
   /** Seed đã xem trước trên UI. Không có thì Isola tự sinh. */
   fingerprint?: ProfileFingerprint

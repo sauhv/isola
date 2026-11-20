@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, net, protocol } from 'electron'
-import { existsSync, mkdirSync, statSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { join, normalize, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { openDatabase, type Db } from './db'
@@ -38,6 +38,58 @@ let db: Db | null = null
 let launcher: LaunchService | null = null
 let mainWindow: BrowserWindow | null = null
 let quitting = false
+let rendererLog: string | null = null
+let lastReloadAt = 0
+
+/** Ghi một dòng vào logs/renderer.log (best-effort). Dùng để tìm nguyên nhân màn trắng. */
+function logLine(line: string): void {
+  if (!rendererLog) return
+  try {
+    appendFileSync(rendererLog, `${new Date().toISOString()} ${line}\n`)
+  } catch {
+    /* không chặn app vì lỗi ghi log */
+  }
+}
+
+/**
+ * Bắt sự cố renderer để app không "trắng màn hình câm": ghi log, và tự tải lại khi tiến trình renderer
+ * chết hoặc trang nạp hỏng (có tiết lưu để không lặp vô hạn). Lỗi React trong component do ErrorBoundary
+ * lo (hiện thông báo + nút Tải lại).
+ */
+function watchRenderer(win: BrowserWindow): void {
+  const wc = win.webContents
+  wc.on('console-message', (_e, level, message, line, source) => {
+    if (level >= 2) logLine(`[console:${level}] ${message} (${source}:${line})`) // 2=warning, 3=error
+  })
+  wc.on('render-process-gone', (_e, details) => {
+    logLine(`[render-process-gone] reason=${details.reason} exitCode=${details.exitCode}`)
+    reloadSoon(win, 'renderer chết')
+  })
+  wc.on('unresponsive', () => logLine('[unresponsive] renderer treo'))
+  wc.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+    if (!isMainFrame || code === -3) return // -3 = ABORTED (điều hướng bị thay), bỏ qua
+    logLine(`[did-fail-load] code=${code} ${desc} url=${url}`)
+    reloadSoon(win, 'trang nạp hỏng')
+  })
+}
+
+/** Tải lại cửa sổ, tối đa một lần mỗi 5 giây để tránh vòng lặp trắng-tải-trắng. */
+function reloadSoon(win: BrowserWindow, why: string): void {
+  if (quitting || win.isDestroyed()) return
+  const now = Date.now()
+  if (now - lastReloadAt < 5000) {
+    logLine(`[reload] bỏ qua (${why}): vừa tải lại < 5s`)
+    return
+  }
+  lastReloadAt = now
+  logLine(`[reload] tải lại vì ${why}`)
+  setTimeout(() => {
+    if (!quitting && !win.isDestroyed()) {
+      if (process.env.ISOLA_DEV_URL) win.loadURL(process.env.ISOLA_DEV_URL)
+      else win.loadURL(`${APP_ORIGIN}/`)
+    }
+  }, 300)
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }
@@ -111,6 +163,7 @@ function createWindow(): void {
     if (new URL(url).origin !== allowedOrigin) event.preventDefault()
   })
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  watchRenderer(mainWindow)
 
   if (process.env.ISOLA_DEV_URL) {
     mainWindow.loadURL(process.env.ISOLA_DEV_URL)
@@ -133,6 +186,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     try {
       const dataRoot = prepareDataRoot()
+      rendererLog = join(paths.logs(dataRoot), 'renderer.log')
       const database = openDatabase(paths.db(dataRoot), { backupDir: paths.backups(dataRoot) })
       db = database
       const host = { os: detectHostOs(), gpuVendor: await detectGpuVendor() }

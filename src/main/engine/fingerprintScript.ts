@@ -30,6 +30,7 @@ export function buildPageScript(fp: EffectiveFingerprint): string {
     cameras: s.mediaDevices.cameras,
     mics: s.mediaDevices.mics,
     webrtc: s.webrtc,
+    doNotTrack: s.doNotTrack ?? null,
     uaData: uaDataConfig(fp)
   }
   return `(() => {
@@ -108,9 +109,11 @@ const isProto = Object.prototype.isPrototypeOf;
 function getter(proto, prop, value) {
   const d = Object.getOwnPropertyDescriptor(proto, prop);
   if (!d || !d.get) return;
+  const orig = d.get;
   const g = Object.getOwnPropertyDescriptor({ get [prop]() {
     if (!isProto.call(proto, this)) throw new TypeError('Illegal invocation');
-    return value();
+    // Fail-safe: lỗi khi tính giá trị giả thì trả giá trị thật, không làm sập trang.
+    try { return value(); } catch (e) { return orig.call(this); }
   } }, prop).get;
   mask(g, 'get ' + prop);
   Object.defineProperty(proto, prop, { get: g, set: d.set, enumerable: d.enumerable, configurable: true });
@@ -118,7 +121,12 @@ function getter(proto, prop, value) {
 function method(proto, prop, make) {
   const orig = proto && proto[prop];
   if (typeof orig !== 'function') return;
-  const wrapped = make(orig);
+  const custom = make(orig);
+  // Fail-safe: nếu logic ghi đè ném lỗi, lùi về hành vi gốc. Đảm bảo fingerprint không bao giờ
+  // làm sập script của trang (nguyên nhân trắng màn hình trên trang nặng như đăng nhập Facebook).
+  const wrapped = function () {
+    try { return custom.apply(this, arguments); } catch (e) { return orig.apply(this, arguments); }
+  };
   Object.defineProperty(wrapped, 'name', { value: orig.name });
   Object.defineProperty(wrapped, 'length', { value: orig.length });
   mask(wrapped, orig.name);
@@ -134,6 +142,7 @@ getter(Navigator.prototype, 'hardwareConcurrency', () => C.cores);
 const langs = Object.freeze(C.languages.slice());
 getter(Navigator.prototype, 'languages', () => langs);
 getter(Navigator.prototype, 'language', () => langs[0]);
+if (C.doNotTrack !== null) { getter(Navigator.prototype, 'doNotTrack', () => C.doNotTrack); }
 
 // --- screen ---
 getter(Screen.prototype, 'width', () => C.screen.width);

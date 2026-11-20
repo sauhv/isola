@@ -178,6 +178,10 @@ export class LaunchService extends EventEmitter {
         ...(extensionDirs.length
           ? [`--disable-extensions-except=${extensionDirs.join(',')}`, `--load-extension=${extensionDirs.join(',')}`]
           : ['--disable-extensions']),
+        // Tắt tăng tốc phần cứng nếu người dùng chọn (giống AdsPower "Hardware acceleration: Close").
+        ...(profile.hwAccel === 'off' ? ['--disable-gpu', '--disable-software-rasterizer'] : []),
+        // Cờ khởi động người dùng tự nhập (đã lọc những cờ Isola tự quản lý để không phá điều khiển).
+        ...userLaunchArgs(profile.launchArgs),
         ...(this.options.extraArgs ?? []),
         // URL khởi động được mở sau khi fingerprint đã gắn (xem bên dưới), không đưa lên dòng lệnh.
         'about:blank'
@@ -382,6 +386,29 @@ export class LaunchService extends EventEmitter {
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+// Cờ Isola tự quản lý: không cho người dùng ghi đè để khỏi phá điều khiển/fingerprint/proxy.
+const RESERVED_ARG_PREFIXES = [
+  '--user-data-dir',
+  '--remote-debugging-pipe',
+  '--remote-debugging-port',
+  '--load-extension',
+  '--disable-extensions-except',
+  '--disable-extensions',
+  '--proxy-server',
+  '--host-resolver-rules',
+  '--lang',
+  '--window-size'
+]
+
+/** Tách cờ người dùng nhập (theo dòng/khoảng trắng), bỏ cờ Isola đang tự quản lý. */
+function userLaunchArgs(raw: string | null): string[] {
+  if (!raw) return []
+  return raw
+    .split(/\s+/)
+    .map((a) => a.trim())
+    .filter((a) => a.startsWith('--') && !RESERVED_ARG_PREFIXES.some((p) => a === p || a.startsWith(p + '=')))
 }
 
 function killTree(proc: ChildProcess): void {

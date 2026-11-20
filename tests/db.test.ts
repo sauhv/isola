@@ -46,6 +46,38 @@ describe('db', () => {
     db.close()
   })
 
+  it('migration 006: giữ dữ liệu cũ và cho phép đặt trùng tên profile sau nâng cấp', () => {
+    const Database = require('better-sqlite3')
+    const db = new Database(join(dir, 'isola.db'))
+    db.pragma('journal_mode = WAL')
+    // Như openDatabase: tắt FK trong lúc migrate để 006 dựng lại bảng được.
+    db.pragma('foreign_keys = OFF')
+    const all = loadMigrations()
+    migrate(db, all.filter((m) => m.version <= 5)) // schema cũ (name UNIQUE)
+    db.prepare("INSERT INTO fingerprints (id, seed_json, catalog_id, created_at) VALUES ('f1','{}','cat','t')").run()
+    const insProfile = (id: string, serial: number, name: string) =>
+      db
+        .prepare(
+          "INSERT INTO profiles (id, serial, name, kernel, fingerprint_id, start_urls, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)"
+        )
+        .run(id, serial, name, 'cft-155', 'f1', '[]', 't', 't')
+    insProfile('p1', 1, 'Dup')
+    // schema cũ: trùng tên bị chặn
+    expect(() => insProfile('p2', 2, 'Dup')).toThrow()
+
+    migrate(db, all) // nâng cấp lên 006
+
+    // dữ liệu cũ còn nguyên
+    expect(db.prepare("SELECT name FROM profiles WHERE id='p1'").get()).toMatchObject({ name: 'Dup' })
+    // giờ cho phép trùng tên
+    insProfile('p2', 2, 'Dup')
+    expect(db.prepare("SELECT COUNT(*) AS n FROM profiles WHERE name='Dup'").get()).toMatchObject({ n: 2 })
+    // index được tạo lại
+    const idx = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='profiles'").all().map((r: any) => r.name)
+    expect(idx).toEqual(expect.arrayContaining(['idx_profiles_proxy', 'idx_profiles_group']))
+    db.close()
+  })
+
   it('chạy migration lần hai không lỗi và không đổi version', () => {
     const file = join(dir, 'isola.db')
     openDatabase(file).close()

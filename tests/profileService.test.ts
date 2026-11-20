@@ -29,11 +29,15 @@ const actions = (id: string) =>
     .map((r: any) => r.action)
 
 describe('profileService', () => {
-  it('serial tăng dần, tên trùng bị từ chối', () => {
+  it('serial tăng dần, cho phép đặt trùng tên profile', () => {
     const a = svc.create({ name: 'A' })
     const b = svc.create({ name: 'B' })
     expect([a.serial, b.serial]).toEqual([1, 2])
-    expect(() => svc.create({ name: 'A' })).toThrow(expect.objectContaining({ code: 'NAME_TAKEN' }))
+    // Tên trùng được chấp nhận: tạo thêm 'A' nữa không lỗi, serial vẫn tăng, là profile riêng.
+    const a2 = svc.create({ name: 'A' })
+    expect(a2.serial).toBe(3)
+    expect(a2.id).not.toBe(a.id)
+    expect(svc.list().filter((p) => p.name === 'A')).toHaveLength(2)
     expect(actions(a.id)).toEqual(['create'])
   })
 
