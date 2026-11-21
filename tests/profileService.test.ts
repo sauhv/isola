@@ -135,13 +135,14 @@ describe('profileService nhân bản & tạo hàng loạt (Phase 5)', () => {
       notes: 'ghi chú',
       lab: true
     })
-    const c1 = svc.clone(src.id)
+    const opts = { count: 1, copyName: false, copyCookies: false, copyProxy: false }
+    const [c1] = svc.clone(src.id, opts)
     expect(c1.name).toBe('Gốc (bản sao)')
     expect(c1.id).not.toBe(src.id)
     expect(c1.serial).toBeGreaterThan(src.serial)
     expect(c1.groupId).toBe(g.id)
     expect(c1.platform).toBe('facebook')
-    expect(c1.tags.map((t) => t.name).sort()).toEqual(['a', 'b'])
+    expect(c1.tags.map((t: { name: string }) => t.name).sort()).toEqual(['a', 'b'])
     expect(c1.startUrls).toEqual(['https://x.com'])
     expect(c1.lab).toBe(true)
     expect(c1.fingerprint).not.toBeNull()
@@ -151,8 +152,13 @@ describe('profileService nhân bản & tạo hàng loạt (Phase 5)', () => {
     // không chép cookie import
     expect(db.prepare('SELECT COUNT(*) AS n FROM cookies_import').get()).toEqual({ n: 0 })
 
-    const c2 = svc.clone(src.id)
+    const [c2] = svc.clone(src.id, opts)
     expect(c2.name).toBe('Gốc (bản sao) 2')
+
+    // copyName + count: tạo nhiều bản trùng tên nguồn
+    const many = svc.clone(src.id, { count: 3, copyName: true, copyCookies: false, copyProxy: false })
+    expect(many).toHaveLength(3)
+    expect(many.every((p) => p.name === 'Gốc')).toBe(true)
   })
 
   it('createMany: mẫu {n}, gán proxy xoay vòng, đếm đúng', () => {

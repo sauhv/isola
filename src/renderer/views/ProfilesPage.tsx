@@ -45,21 +45,7 @@ export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
       .catch(() => {})
   }, [])
 
-  if (form) {
-    return (
-      <ProfileFormPage
-        key={form.profile?.id ?? 'new'}
-        profile={form.profile}
-        onClose={() => setForm(null)}
-        onSaved={() => {
-          setForm(null)
-          setReloadTick((t) => t + 1)
-        }}
-      />
-    )
-  }
-
-  return (
+  const profilesBody = (
     <>
       <div className="page-head">
         <h1 className="page-title">Profile</h1>
@@ -108,6 +94,25 @@ export default function ProfilesPage({ newProfileTick, onNavigate }: Props) {
         {tab === 'groups' && <GroupsTab />}
         {tab === 'trash' && <TrashTab />}
       </div>
+    </>
+  )
+
+  // ProfilesTab luôn ở cùng vị trí trong cây (chỉ ẩn khi mở form) để KHÔNG remount → giữ nguyên
+  // tìm kiếm/bộ lọc/trang khi quay lại sau khi sửa profile.
+  return (
+    <>
+      <div style={form ? { display: 'none' } : undefined}>{profilesBody}</div>
+      {form && (
+        <ProfileFormPage
+          key={form.profile?.id ?? 'new'}
+          profile={form.profile}
+          onClose={() => setForm(null)}
+          onSaved={() => {
+            setForm(null)
+            setReloadTick((t) => t + 1)
+          }}
+        />
+      )}
     </>
   )
 }

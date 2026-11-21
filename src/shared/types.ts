@@ -128,6 +128,20 @@ export interface ProfileInput {
 
 export type ProfilePatch = Partial<Omit<ProfileInput, 'kernel' | 'fingerprint'>>
 
+/** Tùy chọn khi nhân bản profile (hỏi trong hộp thoại Clone). */
+export interface CloneOptions {
+  /** Số bản tạo ra. */
+  count: number
+  /** undefined = giữ group nguồn; null = không group; id = group chỉ định. */
+  groupId?: string | null
+  /** Giữ nguyên tên nguồn (cho trùng tên); tắt thì thêm hậu tố "(bản sao)". */
+  copyName: boolean
+  /** Chép cookie hiện tại của profile nguồn sang bản sao. */
+  copyCookies: boolean
+  /** Chép proxy của profile nguồn; tắt thì bản sao không proxy. */
+  copyProxy: boolean
+}
+
 /** Tạo nhiều profile cùng lúc theo mẫu tên và gán proxy xoay vòng. */
 export interface BulkCreateInput {
   count: number
@@ -313,8 +327,8 @@ export interface IsolaApi {
     stop(id: string): Promise<Result<null>>
     /** Đổi fingerprint có chủ đích (audit seed_rotate). */
     setFingerprint(id: string, fp: ProfileFingerprint): Promise<Result<Profile>>
-    /** Nhân bản profile: seed mới, không chép cookie/user-data. */
-    clone(id: string): Promise<Result<Profile>>
+    /** Nhân bản profile theo tùy chọn (số lượng, group, chép tên/cookie/proxy). Trả danh sách bản tạo. */
+    clone(id: string, opts: CloneOptions): Promise<Result<Profile[]>>
     /** Tạo nhiều profile theo mẫu. */
     createMany(input: BulkCreateInput): Promise<Result<BulkCreateResult>>
     /** Sắp cửa sổ các profile đang chạy thành lưới (ids rỗng = tất cả). */

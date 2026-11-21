@@ -91,6 +91,14 @@ function reloadSoon(win: BrowserWindow, why: string): void {
   }, 300)
 }
 
+// Chế độ dev (ISOLA_DEV_URL chỉ được đặt bởi `npm run dev`): dùng tên + thư mục dữ liệu RIÊNG.
+// Nhờ vậy dev có single-instance lock riêng → mở được song song với bản đã cài (không bị bản cài
+// chiếm lock làm dev tự thoát), và không ghi đè dữ liệu thật (tránh hai instance cùng ghi một DB).
+if (process.env.ISOLA_DEV_URL) {
+  app.setName('Isola Dev')
+  app.setPath('userData', join(app.getPath('appData'), 'isola-dev'))
+}
+
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }
 ])

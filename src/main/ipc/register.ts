@@ -50,6 +50,15 @@ const profileInput = z
   .object({ ...profileFields, kernel: z.string().optional(), fingerprint: fingerprintInput.optional() })
   .strict()
 const profilePatch = z.object(profileFields).partial().strict()
+const cloneOptions = z
+  .object({
+    count: z.number().int().min(1).max(500),
+    groupId: id.nullable().optional(),
+    copyName: z.boolean(),
+    copyCookies: z.boolean(),
+    copyProxy: z.boolean()
+  })
+  .strict()
 const previewOptions = z
   .object({
     catalogId: z.string().max(100).optional(),
@@ -242,7 +251,14 @@ export function registerIpc(s: Services): void {
     return updated
   })
   handle(Channels.profilesSetFingerprint, [id, fingerprintInput], (pid, fp) => s.profiles.setFingerprint(pid, fp as never))
-  handle(Channels.profilesClone, [id], (pid) => s.profiles.clone(pid))
+  handle(Channels.profilesClone, [id, cloneOptions], (pid, opts) => {
+    const created = s.profiles.clone(pid, opts)
+    if (opts.copyCookies) {
+      const b = s.cookies.backup(pid)
+      if (b?.cookies.length) for (const c of created) s.cookies.stage(c.id, b.cookies)
+    }
+    return created
+  })
   handle(Channels.profilesCreateMany, [bulkCreateInput], (input) => s.profiles.createMany(input))
   handle(Channels.profilesArrange, [z.array(id).max(1000)], async (ids) => {
     const area = screen.getPrimaryDisplay().workAreaSize

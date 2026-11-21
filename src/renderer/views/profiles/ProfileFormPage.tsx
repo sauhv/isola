@@ -95,7 +95,7 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
   const [cbCopied, setCbCopied] = useState(false)
 
   // ---- proxy ----
-  const [proxyMode, setProxyMode] = useState<ProxyMode>(profile ? (profile.proxyId ? 'saved' : 'none') : 'saved')
+  const [proxyMode, setProxyMode] = useState<ProxyMode>(profile ? (profile.proxyId ? 'saved' : 'none') : 'none')
   const [proxyId, setProxyId] = useState(profile?.proxyId ?? '')
   const [lab, setLab] = useState(profile?.lab ?? false)
   const [draft, setDraft] = useState({ type: 'http' as ProxyType, host: '', port: '', username: '', password: '' })
@@ -156,7 +156,6 @@ export default function ProfileFormPage({ profile, onClose, onSaved }: Props) {
         setCatalog(c)
         setKernels(k)
         setKernel((cur) => cur || k[0]?.id || '')
-        if (!profile && p.length === 0) setProxyMode('new')
       })
       .catch((e) => setError(e.message))
     if (!profile?.fingerprint) newFingerprint(undefined, !!profile)

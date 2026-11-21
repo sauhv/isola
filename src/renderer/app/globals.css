@@ -1348,3 +1348,22 @@ td.actions {
   font-weight: 600;
   margin-bottom: 8px;
 }
+
+/* Nút bút sửa nhanh trên từng ô bảng profile (hiện khi rê chuột vào dòng). */
+.cell-editable { position: relative; }
+.cell-edit {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+tr:hover .cell-edit { opacity: 0.6; }
+.cell-edit:hover { opacity: 1; color: var(--accent); background: var(--accent-soft); }

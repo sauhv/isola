@@ -35,6 +35,8 @@ import { useI18n } from '../../lib/i18n'
 import { call, isola } from '../../lib/isola'
 import { notYet, toast } from '../../lib/toast'
 import BulkCreateDialog from './BulkCreateDialog'
+import CellEditDialog, { type CellField } from './CellEditDialog'
+import CloneDialog from './CloneDialog'
 import MoveGroupDialog from './MoveGroupDialog'
 
 type SortKey = 'serial' | 'lastOpened'
@@ -65,6 +67,8 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [moving, setMoving] = useState<Profile[] | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [cloning, setCloning] = useState<Profile | null>(null)
+  const [editCell, setEditCell] = useState<{ profile: Profile; field: CellField } | null>(null)
 
   const reload = useCallback(async () => {
     try {
@@ -228,6 +232,13 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
   const sortIcon = (key: SortKey) =>
     sort.key !== key ? <ArrowUpDown size={12} /> : sort.dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
 
+  // Nút bút sửa nhanh ngay trên ô (hiện khi rê chuột vào dòng), mở hộp thoại sửa đúng ô đó.
+  const editIcon = (p: Profile, field: CellField) => (
+    <button className="cell-edit" title={t('common.edit')} onClick={() => setEditCell({ profile: p, field })}>
+      <Pencil size={12} />
+    </button>
+  )
+
   return (
     <>
       <div className="toolbar">
@@ -370,11 +381,12 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                     {p.id.slice(0, 8)}
                   </td>
                   <td className="clip">{p.groupName ?? <span className="muted">—</span>}</td>
-                  <td className="clip" title={p.name}>
-                    {p.name}
+                  <td className="clip cell-editable" title={p.name}>
+                    <span className="clip">{p.name}</span>
                     {p.lab && <span className="tag lab" style={{ marginLeft: 6 }}>lab</span>}
+                    {editIcon(p, 'name')}
                   </td>
-                  <td>
+                  <td className="cell-editable">
                     {px ? (
                       <div className="ip-cell" title={px.error ?? `${px.label} · ${px.type}`}>
                         <MapPin
@@ -391,8 +403,12 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                     ) : (
                       <span className="muted">{p.lab ? t('pt.noProxy') : t('pt.noProxyAssigned')}</span>
                     )}
+                    {editIcon(p, 'proxy')}
                   </td>
-                  <td>{p.notes ? <div className="two-line" title={p.notes}>{p.notes}</div> : <span className="muted">—</span>}</td>
+                  <td className="cell-editable">
+                    {p.notes ? <div className="two-line" title={p.notes}>{p.notes}</div> : <span className="muted">—</span>}
+                    {editIcon(p, 'notes')}
+                  </td>
                   <td>
                     {opened ? (
                       <>
@@ -415,7 +431,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                       <span className="muted">—</span>
                     )}
                   </td>
-                  <td className="clip">
+                  <td className="clip cell-editable">
                     {p.tags.length ? (
                       p.tags.map((tag) => (
                         <span key={tag.id} className="tag">
@@ -425,6 +441,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                     ) : (
                       <span className="muted">—</span>
                     )}
+                    {editIcon(p, 'tags')}
                   </td>
                   <td className="actions">
                     <div>
@@ -458,7 +475,7 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
                           {
                             label: t('pt.clone'),
                             icon: <CopyPlus size={14} />,
-                            onClick: () => single(p.id, () => call(isola().profiles.clone(p.id)).then(reload))
+                            onClick: () => setCloning(p)
                           },
                           {
                             label: t('pt.exportCookie'),
@@ -540,6 +557,30 @@ export default function ProfilesTab({ reloadTick, onCreate, onEdit }: Props) {
           onDone={(msg) => {
             setBulkOpen(false)
             if (msg) setError(msg)
+            reload()
+          }}
+        />
+      )}
+      {cloning && (
+        <CloneDialog
+          source={cloning}
+          groups={groups}
+          onClose={() => setCloning(null)}
+          onDone={(msg) => {
+            setCloning(null)
+            if (msg) toast(msg, 'success')
+            reload()
+          }}
+        />
+      )}
+      {editCell && (
+        <CellEditDialog
+          profile={editCell.profile}
+          field={editCell.field}
+          onClose={() => setEditCell(null)}
+          onDone={(msg) => {
+            setEditCell(null)
+            if (msg) toast(msg, 'success')
             reload()
           }}
         />

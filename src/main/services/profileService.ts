@@ -5,6 +5,7 @@ import type {
   ActivityEntry,
   BulkCreateInput,
   BulkCreateResult,
+  CloneOptions,
   Group,
   Profile,
   ProfileFilter,
@@ -178,24 +179,32 @@ export class ProfileService {
     return this.get(id)
   }
 
-  /** Nhân bản: chép thông tin, sinh seed mới, KHÔNG chép cookie hay user-data. */
-  clone(id: string): Profile {
+  /** Nhân bản: chép thông tin, sinh seed MỚI mỗi bản, KHÔNG chép user-data. Cookie do IPC chép (tùy chọn). */
+  clone(id: string, opts: CloneOptions): Profile[] {
     const src = this.get(id)
     if (src.deletedAt) throw new IsolaError('ARCHIVED')
-    return this.create({
-      name: this.uniqueName(`${src.name} (bản sao)`),
-      groupId: src.groupId,
-      proxyId: src.proxyId,
-      tags: src.tags.map((t) => t.name),
-      startUrls: src.startUrls,
-      username: src.username,
-      notes: src.notes,
-      platform: src.platform,
-      lab: src.lab,
-      launchArgs: src.launchArgs,
-      hwAccel: src.hwAccel,
-      kernel: src.kernel
-    })
+    const count = Math.max(1, Math.min(Math.floor(opts.count) || 1, 500))
+    const out: Profile[] = []
+    for (let i = 0; i < count; i++) {
+      out.push(
+        this.create({
+          name: opts.copyName ? src.name : this.uniqueName(`${src.name} (bản sao)`),
+          groupId: opts.groupId !== undefined ? opts.groupId : src.groupId,
+          proxyId: opts.copyProxy ? src.proxyId : null,
+          tags: src.tags.map((t) => t.name),
+          startUrls: src.startUrls,
+          username: src.username,
+          notes: src.notes,
+          platform: src.platform,
+          // Không chép proxy → bắt buộc là profile lab (mở được khi chưa gán proxy).
+          lab: opts.copyProxy ? src.lab : true,
+          launchArgs: src.launchArgs,
+          hwAccel: src.hwAccel,
+          kernel: src.kernel
+        })
+      )
+    }
+    return out
   }
 
   /** Tạo nhiều profile theo mẫu tên, gán proxy xoay vòng. Best-effort: lỗi dòng nào trả về dòng đó. */
